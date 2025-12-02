@@ -145,6 +145,7 @@ const truncateText = (text: string, maxLength: number): string => {
 const RankPage: React.FC = () => {
   const navigate = useNavigate();
   const { trackLinkClick, trackEvent } = useAnalytics();
+  const allEips = eipsData as unknown as EIP[];
   const [items, setItems] = useState<TierItem[]>([]);
   const [draggedItem, setDraggedItem] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -164,7 +165,7 @@ const RankPage: React.FC = () => {
 
   // Initialize with Glamsterdam headliner EIPs
   useEffect(() => {
-    const glamsterdamHeadliners = eipsData
+    const glamsterdamHeadliners = allEips
       .filter((eip) => eip.forkRelationships.some((fork) => fork.forkName.toLowerCase() === "glamsterdam" && (fork.status === "Proposed" || fork.status === "Considered")))
       .filter((eip) => !isHeadliner(eip, "glamsterdam"))
       .map((eip) => ({

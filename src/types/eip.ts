@@ -5,9 +5,24 @@ export interface ClientTeamPerspective {
   candidateBlogPostUrl?: string; // For non-headliner (CFI/PFI) commentary
 }
 
+export interface ForkStatusEvent {
+  status: 'Proposed' | 'Considered' | 'Scheduled' | 'Declined' | 'Included';
+  /**
+   * Protocol call where this status change was discussed, e.g. "acdc/166".
+   * Optional for backwards compatibility and historical data without a precise call reference.
+   */
+  call?: `${'acdc' | 'acde' | 'acdt'}/${number}`;
+  /**
+   * Short free-form explanation giving context for the status change.
+   */
+  reason?: string;
+}
+
 export interface ForkRelationship {
   forkName: string;
   status: string;
+  // ordered oldest -> newest
+  statusHistory?: ForkStatusEvent[];
   isHeadliner?: boolean;
   wasHeadlinerCandidate?: boolean;
   headlinerDiscussionLink?: string;

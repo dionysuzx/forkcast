@@ -46,6 +46,7 @@ const PublicNetworkUpgradePage: React.FC<PublicNetworkUpgradePageProps> = ({
   metaEipLink,
   clientTeamPerspectives
 }) => {
+  const allEips = eipsData as unknown as EIP[];
   const [eips, setEips] = useState<EIP[]>([]);
   const [activeSection, setActiveSection] = useState<string>('overview');
   const [isDeclinedExpanded, setIsDeclinedExpanded] = useState(false);
@@ -63,7 +64,7 @@ const PublicNetworkUpgradePage: React.FC<PublicNetworkUpgradePageProps> = ({
 
   // Filter EIPs that have relationships with this fork
   useEffect(() => {
-    const filteredEips = eipsData.filter(eip =>
+    const filteredEips = allEips.filter(eip =>
       eip.forkRelationships.some(fork =>
         fork.forkName.toLowerCase() === forkName.toLowerCase()
       )

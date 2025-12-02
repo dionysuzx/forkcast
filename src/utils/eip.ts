@@ -1,6 +1,18 @@
 import { EIP, ForkRelationship, InclusionStage, ProposalType } from '../types/eip';
 
 /**
+ * Get the latest status value for a fork relationship.
+ * Prefers the last entry from statusHistory when available, falling back to the legacy status field.
+ */
+export const getLatestForkStatus = (forkRelationship: ForkRelationship): string | undefined => {
+  const history = forkRelationship.statusHistory;
+  if (history && history.length > 0) {
+    return history[history.length - 1]?.status;
+  }
+  return forkRelationship.status;
+};
+
+/**
  * Get the inclusion stage for an EIP in a specific fork
  */
 export const getInclusionStage = (eip: EIP, forkName?: string): InclusionStage => {
@@ -12,7 +24,9 @@ export const getInclusionStage = (eip: EIP, forkName?: string): InclusionStage =
 
   if (!forkRelationship) return 'Unknown';
 
-  switch (forkRelationship.status) {
+  const status = getLatestForkStatus(forkRelationship);
+
+  switch (status) {
     case 'Proposed':
       return 'Proposed for Inclusion';
     case 'Considered':
