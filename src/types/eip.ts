@@ -5,9 +5,16 @@ export interface ClientTeamPerspective {
   candidateBlogPostUrl?: string; // For non-headliner (CFI/PFI) commentary
 }
 
+export type ForkInclusionStatus =
+  | 'Proposed'
+  | 'Considered'
+  | 'Scheduled'
+  | 'Declined'
+  | 'Included';
+
 export interface ForkRelationship {
   forkName: string;
-  status: string;
+  status: ForkInclusionStatus | string;
   isHeadliner?: boolean;
   wasHeadlinerCandidate?: boolean;
   headlinerDiscussionLink?: string;

@@ -1,25 +1,122 @@
+import type { ForkInclusionStatus } from '../types';
+
+export interface EipDecision {
+  eip: number;
+  fork: string;
+  status: ForkInclusionStatus;
+  reason?: string;
+}
+
 export interface Call {
   type: 'acdc' | 'acde' | 'acdt';
   date: string;
   number: string;
   path: string;
+  eipDecisions?: EipDecision[];
 }
 
 export const protocolCalls: Call[] = [
   // ACDC calls
   { type: 'acdc', date: '2025-04-03', number: '154', path: 'acdc/154' },
-  { type: 'acdc', date: '2025-04-17', number: '155', path: 'acdc/155' },
+  {
+    type: 'acdc',
+    date: '2025-04-17',
+    number: '155',
+    path: 'acdc/155',
+    eipDecisions: [
+      {
+        eip: 2537,
+        fork: 'Pectra',
+        status: 'Proposed',
+        reason: 'Flagged as a candidate for Pectra.',
+      },
+      {
+        eip: 6206,
+        fork: 'Fusaka',
+        status: 'Proposed',
+        reason: 'Discussed as part of the larger EOF package for Fusaka.',
+      },
+    ],
+  },
   { type: 'acdc', date: '2025-05-01', number: '156', path: 'acdc/156' },
   { type: 'acdc', date: '2025-05-15', number: '157', path: 'acdc/157' },
   { type: 'acdc', date: '2025-05-29', number: '158', path: 'acdc/158' },
-  { type: 'acdc', date: '2025-06-26', number: '159', path: 'acdc/159' },
-  { type: 'acdc', date: '2025-07-10', number: '160', path: 'acdc/160' },
-  { type: 'acdc', date: '2025-07-24', number: '161', path: 'acdc/161' },
-  { type: 'acdc', date: '2025-08-07', number: '162', path: 'acdc/162' },
+  {
+    type: 'acdc',
+    date: '2025-06-26',
+    number: '159',
+    path: 'acdc/159',
+    eipDecisions: [
+      {
+        eip: 6206,
+        fork: 'Fusaka',
+        status: 'Declined',
+        reason: 'Decision to keep EOF changes out of Fusaka.',
+      },
+    ],
+  },
+  {
+    type: 'acdc',
+    date: '2025-07-10',
+    number: '160',
+    path: 'acdc/160',
+    eipDecisions: [
+      {
+        eip: 6206,
+        fork: 'Pectra',
+        status: 'Proposed',
+        reason: 'Raised as an EOF candidate for Pectra.',
+      },
+    ],
+  },
+  {
+    type: 'acdc',
+    date: '2025-07-24',
+    number: '161',
+    path: 'acdc/161',
+    eipDecisions: [
+      {
+        eip: 2537,
+        fork: 'Pectra',
+        status: 'Scheduled',
+      },
+    ],
+  },
+  {
+    type: 'acdc',
+    date: '2025-08-07',
+    number: '162',
+    path: 'acdc/162',
+    eipDecisions: [
+      {
+        eip: 6206,
+        fork: 'Pectra',
+        status: 'Considered',
+      },
+      {
+        eip: 663,
+        fork: 'Fusaka',
+        status: 'Declined',
+      },
+    ],
+  },
   { type: 'acdc', date: '2025-08-21', number: '163', path: 'acdc/163' },
   { type: 'acdc', date: '2025-09-04', number: '164', path: 'acdc/164' },
   { type: 'acdc', date: '2025-09-18', number: '165', path: 'acdc/165' },
-  { type: 'acdc', date: '2025-10-02', number: '166', path: 'acdc/166' },
+  {
+    type: 'acdc',
+    date: '2025-10-02',
+    number: '166',
+    path: 'acdc/166',
+    eipDecisions: [
+      {
+        eip: 2537,
+        fork: 'Pectra',
+        status: 'Included',
+        reason: 'Confirmed for inclusion.',
+      },
+    ],
+  },
   { type: 'acdc', date: '2025-10-16', number: '167', path: 'acdc/167' },
   { type: 'acdc', date: '2025-10-30', number: '168', path: 'acdc/168' },
   { type: 'acdc', date: '2025-11-13', number: '169', path: 'acdc/169' },
@@ -27,7 +124,20 @@ export const protocolCalls: Call[] = [
 
   // ACDE calls
   { type: 'acde', date: '2025-03-27', number: '208', path: 'acde/208' },
-  { type: 'acde', date: '2025-04-10', number: '209', path: 'acde/209' },
+  {
+    type: 'acde',
+    date: '2025-04-10',
+    number: '209',
+    path: 'acde/209',
+    eipDecisions: [
+      {
+        eip: 663,
+        fork: 'Pectra',
+        status: 'Proposed',
+        reason: 'Raised in ACDE as a Pectra candidate.',
+      },
+    ],
+  },
   { type: 'acde', date: '2025-04-24', number: '210', path: 'acde/210' },
   { type: 'acde', date: '2025-05-08', number: '211', path: 'acde/211' },
   { type: 'acde', date: '2025-05-22', number: '212', path: 'acde/212' },

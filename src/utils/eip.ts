@@ -1,4 +1,101 @@
-import { EIP, ForkRelationship, InclusionStage, ProposalType } from '../types/eip';
+import { protocolCalls, type Call } from '../data/calls';
+import { EIP, ForkRelationship, InclusionStage, ProposalType, ForkInclusionStatus } from '../types/eip';
+
+export interface ForkDecisionEvent {
+  status: ForkInclusionStatus;
+  callPath: string;
+  callType: Call['type'];
+  callNumber: string;
+  callDate: string;
+  reason?: string;
+}
+
+/**
+ * Collect call-linked decisions for an EIP within a fork ordered oldest -> newest.
+ */
+export const getForkDecisionHistory = (
+  eip: EIP,
+  forkName?: string,
+  calls: Call[] = protocolCalls
+): ForkDecisionEvent[] => {
+  if (!forkName) return [];
+
+  const normalizedFork = forkName.toLowerCase();
+  const events: ForkDecisionEvent[] = [];
+
+  calls.forEach(call => {
+    const decisions = call.eipDecisions?.filter(
+      decision =>
+        decision.eip === eip.id &&
+        decision.fork.toLowerCase() === normalizedFork
+    ) ?? [];
+
+    decisions.forEach(decision => {
+      events.push({
+        status: decision.status,
+        callPath: call.path,
+        callType: call.type,
+        callNumber: call.number,
+        callDate: call.date,
+        reason: decision.reason,
+      });
+    });
+  });
+
+  return events.sort((a, b) => a.callDate.localeCompare(b.callDate));
+};
+
+/**
+ * Get the latest status value for a fork relationship.
+ * Prefers the newest entry derived from call decisions, falling back to the legacy status field.
+ */
+export const getLatestForkStatus = (
+  eip: EIP,
+  forkName?: string,
+  calls: Call[] = protocolCalls
+): ForkInclusionStatus | string | undefined => {
+  if (!forkName) return undefined;
+
+  const forkRelationship = eip.forkRelationships.find(fork =>
+    fork.forkName.toLowerCase() === forkName.toLowerCase()
+  );
+
+  const statusFromRelationship = forkRelationship?.status;
+  const history = getForkDecisionHistory(eip, forkName, calls);
+  const historyStatus = history.length > 0 ? history[history.length - 1]?.status : undefined;
+
+  if (!historyStatus) {
+    return statusFromRelationship;
+  }
+
+  if (!statusFromRelationship) {
+    return historyStatus;
+  }
+
+  const statusRankings: Record<ForkInclusionStatus, number> = {
+    Proposed: 1,
+    Considered: 2,
+    Scheduled: 3,
+    Included: 4,
+    Declined: 4,
+  };
+
+  const getStatusRank = (status?: string): number | null => {
+    if (!status) return null;
+    const rank = statusRankings[status as ForkInclusionStatus];
+    return typeof rank === 'number' ? rank : null;
+  };
+
+  const relationshipRank = getStatusRank(statusFromRelationship);
+  const historyRank = getStatusRank(historyStatus);
+
+  if (relationshipRank === null || historyRank === null) {
+    // Fall back to the legacy status to avoid regressions when ranks are unknown
+    return statusFromRelationship || historyStatus;
+  }
+
+  return historyRank >= relationshipRank ? historyStatus : statusFromRelationship;
+};
 
 /**
  * Get the inclusion stage for an EIP in a specific fork
@@ -12,7 +109,9 @@ export const getInclusionStage = (eip: EIP, forkName?: string): InclusionStage =
 
   if (!forkRelationship) return 'Unknown';
 
-  switch (forkRelationship.status) {
+  const status = getLatestForkStatus(eip, forkName);
+
+  switch (status) {
     case 'Proposed':
       return 'Proposed for Inclusion';
     case 'Considered':
