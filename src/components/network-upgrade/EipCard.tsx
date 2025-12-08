@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { EIP } from '../../types';
+import { Link } from 'react-router-dom';
+import { EIP, ForkRelationship } from '../../types';
 import {
   getInclusionStage,
   getHeadlinerDiscussionLink,
@@ -13,20 +14,41 @@ import {
 import { Tooltip, CopyLinkButton } from '../ui';
 import { usePokebalData } from '../../hooks/usePokebalData';
 import { ClientTestingProgress } from './ClientTestingProgress';
+import { protocolCalls } from '../../data/calls';
+import { networkUpgrades } from '../../data/upgrades';
 
 interface EipCardProps {
   eip: EIP;
   forkName: string;
   handleExternalLinkClick: (linkType: string, url: string) => void;
+  hideViewFullDetails?: boolean;
+  showAllForkRelationships?: boolean;
 }
 
-export const EipCard: React.FC<EipCardProps> = ({ eip, forkName, handleExternalLinkClick }) => {
+// Get fork order based on networkUpgrades
+const getForkOrder = (forkName: string): number => {
+  const index = networkUpgrades.findIndex(
+    upgrade => upgrade.id.toLowerCase() === forkName.toLowerCase()
+  );
+  return index === -1 ? 999 : index;
+};
+
+const sortForkRelationships = (relationships: ForkRelationship[]): ForkRelationship[] => {
+  return [...relationships].sort((a, b) => getForkOrder(a.forkName) - getForkOrder(b.forkName));
+};
+
+export const EipCard: React.FC<EipCardProps> = ({ eip, forkName, handleExternalLinkClick, hideViewFullDetails = false, showAllForkRelationships = false }) => {
   const eipId = `eip-${eip.id}`;
   const layer = getEipLayer(eip, forkName);
   const [showChampionDetails, setShowChampionDetails] = useState(false);
 
   // Fetch pokebal data for EIP 7928
   const { data: pokebalData, loading: pokebalLoading, error: pokebalError } = usePokebalData(eip.id);
+
+  const findCall = (callId?: string) => {
+    if (!callId) return undefined;
+    return protocolCalls.find(call => call.path === callId);
+  };
 
   return (
     <article key={eip.id} className={`bg-white dark:bg-slate-800 border rounded p-8 ${
@@ -386,7 +408,104 @@ export const EipCard: React.FC<EipCardProps> = ({ eip, forkName, handleExternalL
             </div>
           </div>
         )}
+
+        {/* Inclusion Status History - only shown on EIP page (showAllForkRelationships) */}
+        {showAllForkRelationships && (() => {
+          const relationshipsToShow = sortForkRelationships(eip.forkRelationships);
+
+          if (relationshipsToShow.length === 0) return null;
+
+          const renderTimeline = (relationship: ForkRelationship) => {
+            const events = relationship.statusHistory ?? [];
+            const currentStage = getInclusionStage(eip, relationship.forkName);
+
+            if (events.length === 0) return null;
+
+            return (
+              <div key={relationship.forkName} className="border border-slate-200 dark:border-slate-700 rounded-lg p-4 bg-slate-50 dark:bg-slate-700/50">
+                <h5 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-2">
+                  {relationship.forkName}
+                </h5>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
+                  Current status: <span className="font-medium text-slate-900 dark:text-slate-100">{currentStage}</span>
+                </p>
+                <ol className="relative border-l border-slate-200 dark:border-slate-700 ml-2">
+                  {events.map((event, index) => {
+                    const call = findCall(event.call);
+                    const isLatest = index === events.length - 1;
+
+                    const callLabel = event.call ? (() => {
+                      const [type, number] = event.call.split('/');
+                      const displayType = (call?.type || type).toUpperCase();
+                      const displayNumber = call?.number || number;
+                      return `${displayType} #${displayNumber}`;
+                    })() : null;
+
+                    return (
+                      <li key={`${relationship.forkName}-${index}`} className="mb-4 ml-4 last:mb-0">
+                        <div className="absolute left-[-0.5px] w-3 h-3 -translate-x-1/2 rounded-full border-2 border-white dark:border-slate-900 bg-slate-300 dark:bg-slate-500" />
+                        <p className="text-xs font-medium text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                          {event.status}
+                          {isLatest && (
+                            <span className="inline-flex items-center px-2 py-0.5 text-[10px] font-semibold rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300">
+                              Latest
+                            </span>
+                          )}
+                        </p>
+                        {event.call && (
+                          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                            Discussed in{' '}
+                            <Link
+                              to={`/calls/${call?.path ?? event.call}`}
+                              className="underline decoration-slate-300 dark:decoration-slate-600 underline-offset-2 hover:text-slate-900 dark:hover:text-slate-200"
+                              onClick={() => handleExternalLinkClick('call', `/calls/${call?.path ?? event.call}`)}
+                            >
+                              {callLabel}
+                            </Link>
+                            {call?.date && ` on ${call.date}`}
+                          </p>
+                        )}
+                        {event.reason && (
+                          <p className="text-xs text-slate-600 dark:text-slate-300 mt-1">
+                            {event.reason}
+                          </p>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ol>
+              </div>
+            );
+          };
+
+          return (
+            <div>
+              <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-4 uppercase tracking-wide">
+                Inclusion Status History
+              </h4>
+              <div className="space-y-4">
+                {relationshipsToShow.map(renderTimeline)}
+              </div>
+            </div>
+          );
+        })()}
       </div>
+
+      {/* Link to full EIP page */}
+      {!hideViewFullDetails && (
+        <div className="mt-6 pt-6 border-t border-slate-200 dark:border-slate-700">
+          <Link
+            to={`/eips/${eip.id}`}
+            className="inline-flex items-center gap-2 text-sm text-purple-600 hover:text-purple-800 dark:text-purple-400 dark:hover:text-purple-300 font-medium transition-colors"
+            onClick={() => handleExternalLinkClick('eip_page', `/eips/${eip.id}`)}
+          >
+            View full details for {getProposalPrefix(eip)}-{eip.id}
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </Link>
+        </div>
+      )}
     </article>
   );
 };
