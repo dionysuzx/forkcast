@@ -12,7 +12,11 @@
   "forkRelationships": [
     {
       "forkName": "Glamsterdam",
-      "status": "Proposed",
+      "statusHistory": [
+        {
+          "status": "Proposed"
+        }
+      ],
       "layer": "CL",
       "champion": {
         "name": "Francesco D'Amato",
