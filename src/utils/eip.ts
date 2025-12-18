@@ -12,7 +12,16 @@ export const getInclusionStage = (eip: EIP, forkName?: string): InclusionStage =
 
   if (!forkRelationship) return 'Unknown';
 
-  switch (forkRelationship.status) {
+  // Try statusHistory first (get latest/last entry)
+  let status: string | undefined;
+  if (forkRelationship.statusHistory && forkRelationship.statusHistory.length > 0) {
+    status = forkRelationship.statusHistory[forkRelationship.statusHistory.length - 1].status;
+  } else {
+    // Fallback to deprecated status field
+    status = forkRelationship.status;
+  }
+
+  switch (status) {
     case 'Proposed':
       return 'Proposed for Inclusion';
     case 'Considered':

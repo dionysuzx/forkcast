@@ -7,7 +7,13 @@ export interface ClientTeamPerspective {
 
 export interface ForkRelationship {
   forkName: string;
-  status: string;
+  /** @deprecated Use statusHistory instead */
+  status?: string;
+  statusHistory?: Array<{
+    status: string;
+    call?: string;
+    reason?: string;
+  }>;
   isHeadliner?: boolean;
   wasHeadlinerCandidate?: boolean;
   headlinerDiscussionLink?: string;
