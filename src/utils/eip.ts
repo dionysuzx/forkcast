@@ -14,8 +14,8 @@ export const getInclusionStage = (eip: EIP, forkName?: string): InclusionStage =
 
   // Try statusHistory first (get latest/last entry)
   let status: string | undefined;
-  if (forkRelationship.statusHistory && forkRelationship.statusHistory.length > 0) {
-    status = forkRelationship.statusHistory[forkRelationship.statusHistory.length - 1].status;
+  if (forkRelationship.statusHistory?.length) {
+    status = forkRelationship.statusHistory.at(-1)?.status;
   } else {
     // Fallback to deprecated status field
     status = forkRelationship.status;
