@@ -848,7 +848,9 @@
         "forkName": "Glamsterdam",
         "statusHistory": [
           {
-            "status": "Withdrawn"
+            "status": "Withdrawn",
+            "call": "acde/223",
+            "date": "2025-10-23"
           }
         ],
         "layer": "EL",
@@ -1620,7 +1622,9 @@
         "forkName": "Glamsterdam",
         "statusHistory": [
           {
-            "status": "Withdrawn"
+            "status": "Withdrawn",
+            "call": "acde/223",
+            "date": "2025-10-23"
           }
         ],
         "layer": "EL"
