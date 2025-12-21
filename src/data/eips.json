@@ -1881,6 +1881,11 @@
         "forkName": "Glamsterdam",
         "statusHistory": [
           {
+            "status": "Proposed",
+            "call": "acdc/167",
+            "date": "2025-10-16"
+          },
+          {
             "status": "Considered"
           }
         ],
