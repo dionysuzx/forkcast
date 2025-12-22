@@ -14,6 +14,9 @@
       "forkName": "Pectra",
       "statusHistory": [
         {
+          "status": "Considered"
+        },
+        {
           "status": "Declined"
         }
       ]
@@ -21,6 +24,12 @@
     {
       "forkName": "Fusaka",
       "statusHistory": [
+        {
+          "status": "Considered"
+        },
+        {
+          "status": "Scheduled"
+        },
         {
           "status": "Included"
         }

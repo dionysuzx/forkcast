@@ -22,6 +22,9 @@
       "forkName": "Glamsterdam",
       "statusHistory": [
         {
+          "status": "Proposed"
+        },
+        {
           "status": "Scheduled"
         }
       ],

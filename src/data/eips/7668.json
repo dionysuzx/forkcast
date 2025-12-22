@@ -22,7 +22,9 @@
       "forkName": "Glamsterdam",
       "statusHistory": [
         {
-          "status": "Proposed"
+          "status": "Proposed",
+          "call": "acdt/057",
+          "date": "2025-10-13"
         }
       ],
       "layer": "EL",

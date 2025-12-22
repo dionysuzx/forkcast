@@ -20,7 +20,11 @@
     },
     {
       "forkName": "Glamsterdam",
-      "statusHistory": [],
+      "statusHistory": [
+        {
+          "status": "Proposed"
+        }
+      ],
       "isHeadliner": false,
       "wasHeadlinerCandidate": true,
       "headlinerDiscussionLink": "https://ethereum-magicians.org/t/glamsterdam-headliner-proposal-eof/24464",
