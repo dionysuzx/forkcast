@@ -106,7 +106,7 @@ export const EipTimeline: React.FC<EipTimelineProps> = ({ eip }) => {
     // If there's a champion and no "Proposed" in history, prepend it
     const hasProposedStep = fork.statusHistory.some(entry => entry.status === 'Proposed');
     const effectiveHistory = (fork.champion && !hasProposedStep)
-      ? [{ status: 'Proposed' as const, call: null, date: null }, ...fork.statusHistory]
+      ? [{ status: 'Proposed' as const }, ...fork.statusHistory]
       : fork.statusHistory;
 
     // Reverse the status history so most recent is first

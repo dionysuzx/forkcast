@@ -8,6 +8,8 @@ export interface ClientTeamPerspective {
 // Statuses not tied to ACD calls
 type NonAcdStatus = {
   status: 'Proposed' | 'Included';
+  call?: undefined;
+  date?: undefined;
 };
 
 // Statuses decided in ACD calls (null allowed for legacy data)
