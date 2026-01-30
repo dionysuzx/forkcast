@@ -8,17 +8,18 @@
   "category": "Core",
   "createdDate": "2026-01-29",
   "discussionLink": "https://ethereum-magicians.org/t/eip-8141-frame-transaction/27617",
+  "reviewer": "bot",
   "layer": "EL",
   "forkRelationships": [
     {
       "forkName": "Hegota",
       "statusHistory": [],
-      "isHeadliner": true,
-      "wasHeadlinerCandidate": false,
-      "champion": {
-        "name": "Felix Lange",
-        "discord": "fjl"
-      },
+      "isHeadliner": false,
+      "wasHeadlinerCandidate": true,
+      "champions": [
+        { "name": "Felix Lange", "discord": "fjl" },
+        { "name": "lightclient", "discord": "lightclient" }
+      ],
       "presentationHistory": [
         {
           "type": "headliner_proposal",
