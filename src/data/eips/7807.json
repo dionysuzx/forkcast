@@ -1,0 +1,81 @@
+{
+  "id": 7807,
+  "title": "EIP-7807: SSZ execution blocks",
+  "status": "Draft",
+  "description": "Migrates execution blocks to Simple Serialize (SSZ), enabling a unified block representation across CL and EL. Changes block hash to hash_tree_root, converts transactions/receipts/withdrawals roots to SSZ, and introduces a binary engine API replacing JSON encoding.",
+  "author": "Etan Kissling (@etan-status), Gajinder Singh (@g11tech)",
+  "type": "Standards Track",
+  "category": "Core",
+  "createdDate": "2024-10-28",
+  "discussionLink": "https://ethereum-magicians.org/t/eip-7807-ssz-execution-blocks/21580",
+  "layer": "EL",
+  "forkRelationships": [
+    {
+      "forkName": "Glamsterdam",
+      "statusHistory": [],
+      "isHeadliner": true,
+      "wasHeadlinerCandidate": false,
+      "champion": {
+        "name": "Etan Kissling",
+        "discord": "etan-status"
+      },
+      "presentationHistory": [
+        {
+          "type": "headliner_proposal",
+          "link": "https://ethereum-magicians.org/t/hegota-headliner-proposal-ssz-execution-blocks/27619",
+          "date": "2026-01-29"
+        },
+        {
+          "type": "headliner_presentation",
+          "call": "acde/229",
+          "date": "2026-01-29"
+        }
+      ]
+    }
+  ],
+  "laymanDescription": "Converts Ethereum's execution block format from RLP encoding to SSZ, a more efficient binary format already used by the consensus layer. This enables faster data exchange between clients and allows proving individual pieces of block data.",
+  "northStarAlignment": {
+    "scaleBlobs": {
+      "description": "Binary engine API alleviates latency bottleneck from JSON encoding at higher blob counts."
+    },
+    "improveUX": {
+      "description": "Tree-based hashes enable trustless wallets that can verify partial transaction data without third parties."
+    }
+  },
+  "stakeholderImpacts": {
+    "endUsers": {
+      "description": "No direct impact."
+    },
+    "appDevs": {
+      "description": "Less maintenance for verifying applications consuming transaction/receipt fields."
+    },
+    "walletDevs": {
+      "description": "Enables building trustless wallets with provable partial data."
+    },
+    "toolingInfra": {
+      "description": "Binary API reduces encoding/parsing overhead by ~50%."
+    },
+    "layer2s": {
+      "description": "Simpler verification with tree-based proofs of partial block data."
+    },
+    "stakersNodes": {
+      "description": "Simpler sync without RLP/MPT conversion overhead."
+    },
+    "clClients": {
+      "description": "Can compute block hash autonomously, dropping async EL communication during sync."
+    },
+    "elClients": {
+      "description": "Significant implementation work for SSZ library, database, and networking changes."
+    }
+  },
+  "benefits": [
+    "Tree-based hashes enable proofs of partial data for smart contracts and light clients.",
+    "Binary engine API reduces data exchange size by ~50% and improves encoding efficiency.",
+    "Forward-compatible proofs reduce maintenance when Ethereum upgrades add new fields.",
+    "Simplifies CL sync by removing RLP/MPT dependencies."
+  ],
+  "tradeoffs": [
+    "Breaks compatibility with contracts depending on previous block header binary format.",
+    "Requires database and network protocol changes across all client implementations."
+  ]
+}
