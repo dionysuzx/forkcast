@@ -14,8 +14,8 @@
     {
       "forkName": "Glamsterdam",
       "statusHistory": [],
-      "isHeadliner": true,
-      "wasHeadlinerCandidate": false,
+      "isHeadliner": false,
+      "wasHeadlinerCandidate": true,
       "champion": {
         "name": "Etan Kissling",
         "discord": "etan-status"
