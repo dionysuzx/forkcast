@@ -1142,12 +1142,15 @@ const RankPage: React.FC = () => {
               </div>
             )}
 
-            {hoveredEip.forkRelationships.find(fork => fork.forkName.toLowerCase() === "glamsterdam")?.champion && (
-              <div className="text-xs text-slate-500 dark:text-slate-400">
-                <span className="font-medium">Champion:</span>{" "}
-                {hoveredEip.forkRelationships.find(fork => fork.forkName.toLowerCase() === "glamsterdam")?.champion?.name}
-              </div>
-            )}
+            {(() => {
+              const champions = hoveredEip.forkRelationships.find(fork => fork.forkName.toLowerCase() === "glamsterdam")?.champions;
+              return champions && champions.length > 0 && (
+                <div className="text-xs text-slate-500 dark:text-slate-400">
+                  <span className="font-medium">{champions.length > 1 ? 'Champions:' : 'Champion:'}</span>{" "}
+                  {champions.map(c => c.name).join(' & ')}
+                </div>
+              );
+            })()}
           </div>
         </div>
       )}
