@@ -1,0 +1,71 @@
+{
+  "id": 7807,
+  "title": "EIP-7807: SSZ execution blocks",
+  "status": "Draft",
+  "description": "Migrates execution blocks to SSZ format, enabling normalized block hashes that allow the consensus layer to verify execution blocks independently, optimized binary engine API reducing data exchange by ~50%, provable individual block header fields via Merkle proofs, and cleanup of historical PoW-era fields.",
+  "author": "Etan Kissling (@etan-status), Gajinder Singh (@g11tech)",
+  "type": "Standards Track",
+  "category": "Core",
+  "createdDate": "2024-10-28",
+  "discussionLink": "https://ethereum-magicians.org/t/eip-7807-ssz-execution-blocks/21580",
+  "layer": "EL",
+  "forkRelationships": [
+    {
+      "forkName": "Glamsterdam",
+      "statusHistory": [],
+      "wasHeadlinerCandidate": true,
+      "champion": {
+        "name": "Etan Kissling",
+        "discord": "@etan-status"
+      },
+      "presentationHistory": [
+        {
+          "type": "headliner_proposal",
+          "link": "https://ethereum-magicians.org/t/hegota-headliner-proposal-ssz-execution-blocks/27619",
+          "date": "2026-01-29"
+        },
+        {
+          "type": "presentation",
+          "call": "acde/229",
+          "date": "2026-01-29"
+        }
+      ]
+    }
+  ],
+  "laymanDescription": "Converts Ethereum execution block data to a more efficient format (SSZ) that reduces data transmission overhead, enables cryptographic proofs of individual block fields, and simplifies coordination between consensus and execution layers.",
+  "stakeholderImpacts": {
+    "endUsers": {
+      "description": "No direct impact."
+    },
+    "appDevs": {
+      "description": "Verifying applications benefit from provable block header fields without requiring full headers."
+    },
+    "walletDevs": {
+      "description": "No direct impact."
+    },
+    "toolingInfra": {
+      "description": "Binary beacon-API style encoding simplifies RPC server design and reduces conversion overhead."
+    },
+    "layer2s": {
+      "description": "Simpler verification of block data with forward-compatible Merkle proofs."
+    },
+    "stakersNodes": {
+      "description": "CL can sync optimistically without EL during maintenance periods."
+    },
+    "clClients": {
+      "description": "No longer need RLP/MPT support for optimistic sync; can verify block hashes independently."
+    },
+    "elClients": {
+      "description": "Significant implementation work: database schema, network protocol, and internal logic changes required."
+    }
+  },
+  "benefits": [
+    "CL can verify execution block hashes independently without waiting for engine API responses.",
+    "Binary SSZ engine API reduces data exchange by ~50% and improves encoding efficiency.",
+    "Individual block header fields become provable via forward-compatible Merkle proofs.",
+    "Enables cleanup of historical PoW-era fields and inefficient logs bloom mechanism."
+  ],
+  "tradeoffs": [
+    "Breaks compatibility for smart contracts depending on previous block header binary format."
+  ]
+}
