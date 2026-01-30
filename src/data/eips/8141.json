@@ -13,13 +13,7 @@
   "forkRelationships": [
     {
       "forkName": "Hegota",
-      "statusHistory": [
-        {
-          "status": "Proposed",
-          "call": "acde/229",
-          "date": "2026-01-29"
-        }
-      ],
+      "statusHistory": [],
       "isHeadliner": false,
       "wasHeadlinerCandidate": true,
       "champion": {
