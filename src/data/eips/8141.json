@@ -1,0 +1,85 @@
+{
+  "id": 8141,
+  "title": "EIP-8141: Frame Transaction",
+  "status": "Draft",
+  "description": "Adds a new transaction type whose validity and gas payment can be defined abstractly. Instead of relying on a single ECDSA signature, accounts may freely define and interpret their signature scheme using any cryptographic system, enabling post-quantum security and native account abstraction.",
+  "author": "Vitalik Buterin (@vbuterin), lightclient (@lightclient), Felix Lange (@fjl), Yoav Weiss (@yoavw), Alex Forshtat (@forshtat), Dror Tirosh (@drortirosh), Shahaf Nacson (@shahafn)",
+  "type": "Standards Track",
+  "category": "Core",
+  "createdDate": "2026-01-29",
+  "discussionLink": "https://ethereum-magicians.org/t/frame-transaction/27617",
+  "reviewer": "bot",
+  "layer": "EL",
+  "forkRelationships": [
+    {
+      "forkName": "Hegota",
+      "statusHistory": [
+        {
+          "status": "Proposed",
+          "call": "acde/229",
+          "date": "2026-01-29"
+        }
+      ],
+      "isHeadliner": false,
+      "wasHeadlinerCandidate": true,
+      "champion": {
+        "name": "Felix Lange",
+        "discord": "fjl"
+      },
+      "presentationHistory": [
+        {
+          "type": "headliner_proposal",
+          "link": "https://ethereum-magicians.org/t/hegota-headliner-proposal-frame-transaction/27618",
+          "date": "2026-01-29"
+        },
+        {
+          "type": "headliner_presentation",
+          "call": "acde/229",
+          "date": "2026-01-29"
+        }
+      ]
+    }
+  ],
+  "laymanDescription": "Allows smart accounts to verify transactions using any cryptographic method instead of only ECDSA signatures, enabling post-quantum security and flexible fee payment including gas sponsorship.",
+  "northStarAlignment": {
+    "improveUX": {
+      "description": "Enables native account abstraction with flexible validation and gas sponsorship, allowing smart wallets with better security, recovery options, and gasless transactions."
+    }
+  },
+  "stakeholderImpacts": {
+    "endUsers": {
+      "description": "Enables smart accounts with custom signing schemes, post-quantum security, and sponsored transactions."
+    },
+    "appDevs": {
+      "description": "Can integrate gas sponsorship and leverage new smart account capabilities for better UX."
+    },
+    "walletDevs": {
+      "description": "Must implement new transaction type and support arbitrary validation logic in smart accounts."
+    },
+    "toolingInfra": {
+      "description": "Need to support new transaction format, receipt structure, and per-frame status tracking."
+    },
+    "layer2s": {
+      "description": "Can adopt the same transaction type for consistent cross-layer account abstraction."
+    },
+    "stakersNodes": {
+      "description": "Must enforce mempool validation rules similar to ERC-7562 to prevent DoS attacks."
+    },
+    "clClients": {
+      "description": "No direct impact on consensus layer."
+    },
+    "elClients": {
+      "description": "Major work: new tx type, APPROVE and TXPARAM opcodes, multi-frame execution, and per-frame receipts."
+    }
+  },
+  "benefits": [
+    "Provides native off-ramp to post-quantum secure cryptography",
+    "Enables flexible gas sponsorship and ERC-20 fee payment",
+    "Supports native batched transactions with per-frame receipts",
+    "Unifies account abstraction at the protocol level"
+  ],
+  "tradeoffs": [
+    "Introduces new DoS vectors requiring mempool validation rules",
+    "Changes ORIGIN opcode behavior for frame transactions"
+  ]
+}
