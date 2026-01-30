@@ -1,0 +1,79 @@
+{
+  "id": 8141,
+  "title": "Frame Transaction",
+  "status": "Draft",
+  "description": "Add a new transaction type whose validity and gas payment can be defined abstractly. Instead of relying solely on a single ECDSA signature, accounts may freely define and interpret their signature scheme using any cryptographic system.",
+  "author": "Vitalik Buterin (@vbuterin), lightclient (@lightclient), Felix Lange (@fjl), Yoav Weiss (@yoavw), Alex Forshtat (@forshtat), Dror Tirosh (@drortirosh), Shahaf Nacson (@shahafn)",
+  "type": "Standards Track",
+  "category": "Core",
+  "createdDate": "2026-01-29",
+  "discussionLink": "https://ethereum-magicians.org/t/frame-transaction/27617",
+  "layer": "EL",
+  "forkRelationships": [
+    {
+      "forkName": "Hegota",
+      "statusHistory": [],
+      "isHeadliner": true,
+      "wasHeadlinerCandidate": false,
+      "champion": {
+        "name": "Felix Lange",
+        "discord": "fjl"
+      },
+      "presentationHistory": [
+        {
+          "type": "headliner_proposal",
+          "link": "https://ethereum-magicians.org/t/hegota-headliner-proposal-frame-transaction/27618",
+          "date": "2026-01-29"
+        },
+        {
+          "type": "headliner_presentation",
+          "call": "acde/229",
+          "date": "2026-01-29",
+          "timestamp": 4243
+        }
+      ]
+    }
+  ],
+  "laymanDescription": "A new transaction type that lets accounts use any cryptographic signature scheme instead of just ECDSA. This enables post-quantum security, flexible smart wallets with features like social recovery and spending limits, and native gas sponsorship.",
+  "northStarAlignment": {
+    "improveUX": {
+      "description": "Enables native account abstraction with flexible wallets supporting social recovery, multi-sig, spending limits, and gas sponsorship without intermediaries."
+    }
+  },
+  "stakeholderImpacts": {
+    "endUsers": {
+      "description": "Better wallet UX with flexible security options and ability to have transactions sponsored by others."
+    },
+    "appDevs": {
+      "description": "Can leverage native AA infrastructure for easier user onboarding and advanced wallet features."
+    },
+    "walletDevs": {
+      "description": "Must implement new transaction type and validation logic, but gain native AA capabilities without bundler dependency."
+    },
+    "toolingInfra": {
+      "description": "Need to support new transaction type and receipt format with per-frame receipts."
+    },
+    "layer2s": {
+      "description": "Can adopt same AA model for cross-chain interoperability."
+    },
+    "stakersNodes": {
+      "description": "New mempool validation rules required for frame transactions."
+    },
+    "clClients": {
+      "description": "No direct changes required."
+    },
+    "elClients": {
+      "description": "Significant implementation: new transaction type, 4 new opcodes, frame execution model, and mempool validation rules."
+    }
+  },
+  "benefits": [
+    "Provides migration path away from ECDSA to post-quantum secure signatures",
+    "Native account abstraction without bundler intermediaries",
+    "Flexible gas sponsorship and ERC-20 fee payments",
+    "Synergy with FOCIL for censorship-resistant privacy transactions"
+  ],
+  "tradeoffs": [
+    "New mempool DoS vectors require ERC-7562-style validation restrictions",
+    "ORIGIN opcode behavior changes for frame transactions"
+  ]
+}
