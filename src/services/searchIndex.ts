@@ -41,7 +41,7 @@ interface IndexedSearchDocument extends IndexedContent {
   searchableText: string;
 }
 
-interface StoredRuntimeIndex {
+interface StoredIndex {
   version: string;
   documents: IndexedContent[];
   miniSearch: AsPlainObject;
@@ -53,44 +53,16 @@ interface SearchManifestShard {
   id: string;
   docsFile: string;
   miniFile: string;
-  hash: string;
-  docsHash: string;
-  miniHash: string;
-  docCount: number;
-  callCount: number;
-  fromDate: string;
-  toDate: string;
+  hash?: string;
 }
 
 interface SearchManifest {
-  schemaVersion: number;
   indexVersion: string;
-  shardStrategy: string;
-  builtAt: string;
-  appVersion: string;
-  routingKey: string;
-  shardCount: number;
-  totalDocuments: number;
-  totalCalls: number;
+  builtAt?: string;
   shards: SearchManifestShard[];
 }
 
-interface StoredManifest {
-  manifest: SearchManifest;
-  savedAt: number;
-}
-
-interface StoredShard {
-  cacheKey: string;
-  indexVersion: string;
-  shardId: string;
-  hash: string;
-  docs: IndexedContent[];
-  miniSearch: AsPlainObject;
-  savedAt: number;
-}
-
-interface LoadedSearchShard {
+interface PrebuiltShard {
   meta: SearchManifestShard;
   docs: IndexedContent[];
   miniSearch: MiniSearch<IndexedSearchDocument>;
@@ -116,33 +88,30 @@ export interface SearchLoadState {
 class SearchIndexService {
   private static instance: SearchIndexService;
 
-  private runtimeIndex: SearchIndex | null = null;
-  private runtimeIndexPromise: Promise<SearchIndex> | null = null;
+  // Runtime fallback index (existing path)
+  private index: SearchIndex | null = null;
+  private indexPromise: Promise<SearchIndex> | null = null;
 
+  // Prebuilt index state (new path)
   private manifest: SearchManifest | null = null;
   private manifestPromise: Promise<SearchManifest | null> | null = null;
-
-  private readonly loadedShards = new Map<string, LoadedSearchShard>();
-  private readonly shardLoadPromises = new Map<string, Promise<LoadedSearchShard | null>>();
+  private readonly loadedShards = new Map<string, PrebuiltShard>();
+  private readonly shardPromises = new Map<string, Promise<PrebuiltShard | null>>();
   private backgroundPreloadPromise: Promise<void> | null = null;
-
   private prebuiltDisabled = false;
   private bootstrapInitialized = false;
 
+  // Runtime fallback storage
   private readonly DB_NAME = 'forkcast_search';
-  private readonly DB_VERSION = 2;
-  private readonly RUNTIME_STORE = 'runtime_index';
-  private readonly META_STORE = 'search_meta';
-  private readonly SHARD_STORE = 'search_shards';
-
-  private readonly MANIFEST_KEY = 'prebuilt_manifest';
-  private readonly RUNTIME_INDEX_KEY = 'runtime';
-
-  private readonly RUNTIME_INDEX_VERSION = '3.0.0-runtime-fallback';
-  private readonly MAX_RUNTIME_INDEX_AGE = 24 * 60 * 60 * 1000;
+  private readonly DB_VERSION = 1;
+  private readonly STORE_NAME = 'search_index';
+  private readonly INDEX_VERSION = '2.0.0-minisearch';
+  private readonly MAX_INDEX_AGE = 24 * 60 * 60 * 1000; // 24 hours
   private readonly BUILD_CONCURRENCY = 8;
-  private readonly INITIAL_SHARD_COUNT = 2;
+
+  // Prebuilt loading
   private readonly PREBUILT_MANIFEST_PATH = '/search/manifest.json';
+  private readonly INITIAL_SHARD_COUNT = 2;
 
   private constructor() {}
 
@@ -263,33 +232,27 @@ class SearchIndexService {
     }
 
     const manifest = input as Partial<SearchManifest>;
-    if (!Array.isArray(manifest.shards)) {
-      return false;
-    }
-
     if (typeof manifest.indexVersion !== 'string' || !manifest.indexVersion) {
       return false;
     }
 
-    return manifest.shards.every(shard => (
+    if (!Array.isArray(manifest.shards)) {
+      return false;
+    }
+
+    return manifest.shards.every((shard) => (
       shard
       && typeof shard.id === 'string'
       && typeof shard.docsFile === 'string'
       && typeof shard.miniFile === 'string'
-      && typeof shard.hash === 'string'
     ));
   }
 
-  private normalizeManifest(manifest: SearchManifest): SearchManifest {
-    const sortedShards = [...manifest.shards].sort((a, b) => a.id.localeCompare(b.id));
-    return {
-      ...manifest,
-      shards: sortedShards,
-      shardCount: sortedShards.length
-    };
+  private getShardsByRecency(manifest: SearchManifest): SearchManifestShard[] {
+    return [...manifest.shards].sort((a, b) => b.id.localeCompare(a.id));
   }
 
-  private async fetchManifestFromNetwork(): Promise<SearchManifest | null> {
+  private async fetchManifest(): Promise<SearchManifest | null> {
     try {
       const response = await fetch(this.PREBUILT_MANIFEST_PATH, { cache: 'no-store' });
       if (!response.ok) {
@@ -298,204 +261,15 @@ class SearchIndexService {
 
       const data = await response.json();
       if (!this.isValidManifest(data)) {
-        console.error('Invalid search manifest format.');
         return null;
       }
 
-      return this.normalizeManifest(data);
-    } catch {
-      return null;
-    }
-  }
-
-  private getShardsByRecency(manifest: SearchManifest): SearchManifestShard[] {
-    return [...manifest.shards].sort((a, b) => b.id.localeCompare(a.id));
-  }
-
-  private getShardCacheKey(indexVersion: string, shard: SearchManifestShard): string {
-    return `${indexVersion}:${shard.id}:${shard.hash}`;
-  }
-
-  private async openDB(): Promise<IDBDatabase> {
-    return new Promise((resolve, reject) => {
-      const request = indexedDB.open(this.DB_NAME, this.DB_VERSION);
-
-      request.onerror = () => reject(request.error);
-      request.onsuccess = () => resolve(request.result);
-
-      request.onupgradeneeded = (event) => {
-        const db = (event.target as IDBOpenDBRequest).result;
-        if (!db.objectStoreNames.contains(this.RUNTIME_STORE)) {
-          db.createObjectStore(this.RUNTIME_STORE);
-        }
-        if (!db.objectStoreNames.contains(this.META_STORE)) {
-          db.createObjectStore(this.META_STORE);
-        }
-        if (!db.objectStoreNames.contains(this.SHARD_STORE)) {
-          db.createObjectStore(this.SHARD_STORE);
-        }
-      };
-    });
-  }
-
-  private async getFromStore<T>(storeName: string, key: string): Promise<T | null> {
-    try {
-      const db = await this.openDB();
-      const transaction = db.transaction([storeName], 'readonly');
-      const store = transaction.objectStore(storeName);
-
-      const result = await new Promise<T | undefined>((resolve, reject) => {
-        const request = store.get(key);
-        request.onsuccess = () => resolve(request.result);
-        request.onerror = () => reject(request.error);
-      });
-
-      db.close();
-      return result ?? null;
-    } catch {
-      return null;
-    }
-  }
-
-  private async putToStore<T>(storeName: string, key: string, value: T): Promise<void> {
-    try {
-      const db = await this.openDB();
-      const transaction = db.transaction([storeName], 'readwrite');
-      const store = transaction.objectStore(storeName);
-
-      await new Promise<void>((resolve, reject) => {
-        const request = store.put(value, key);
-        request.onsuccess = () => resolve();
-        request.onerror = () => reject(request.error);
-      });
-
-      db.close();
-    } catch (error) {
-      console.error(`Error writing to ${storeName}:`, error);
-    }
-  }
-
-  private async deleteFromStore(storeName: string, key: string): Promise<void> {
-    try {
-      const db = await this.openDB();
-      const transaction = db.transaction([storeName], 'readwrite');
-      const store = transaction.objectStore(storeName);
-
-      await new Promise<void>((resolve, reject) => {
-        const request = store.delete(key);
-        request.onsuccess = () => resolve();
-        request.onerror = () => reject(request.error);
-      });
-
-      db.close();
-    } catch (error) {
-      console.error(`Error deleting from ${storeName}:`, error);
-    }
-  }
-
-  private async loadManifestFromStorage(): Promise<SearchManifest | null> {
-    const stored = await this.getFromStore<StoredManifest>(this.META_STORE, this.MANIFEST_KEY);
-    if (!stored || !this.isValidManifest(stored.manifest)) {
-      return null;
-    }
-
-    return this.normalizeManifest(stored.manifest);
-  }
-
-  private async saveManifestToStorage(manifest: SearchManifest): Promise<void> {
-    const payload: StoredManifest = {
-      manifest,
-      savedAt: Date.now()
-    };
-
-    await this.putToStore(this.META_STORE, this.MANIFEST_KEY, payload);
-  }
-
-  private async loadShardFromStorage(cacheKey: string): Promise<LoadedSearchShard | null> {
-    const stored = await this.getFromStore<StoredShard>(this.SHARD_STORE, cacheKey);
-    if (!stored) {
-      return null;
-    }
-
-    try {
-      const miniSearch = MiniSearch.loadJS<IndexedSearchDocument>(
-        stored.miniSearch,
-        this.getMiniSearchOptions()
-      );
-
       return {
-        meta: {
-          id: stored.shardId,
-          docsFile: '',
-          miniFile: '',
-          hash: stored.hash,
-          docsHash: '',
-          miniHash: '',
-          docCount: stored.docs.length,
-          callCount: 0,
-          fromDate: '',
-          toDate: ''
-        },
-        docs: stored.docs,
-        miniSearch
+        ...data,
+        shards: [...data.shards].sort((a, b) => a.id.localeCompare(b.id))
       };
     } catch {
-      await this.deleteFromStore(this.SHARD_STORE, cacheKey);
       return null;
-    }
-  }
-
-  private async saveShardToStorage(
-    cacheKey: string,
-    indexVersion: string,
-    shard: SearchManifestShard,
-    docs: IndexedContent[],
-    miniSearch: AsPlainObject
-  ): Promise<void> {
-    const payload: StoredShard = {
-      cacheKey,
-      indexVersion,
-      shardId: shard.id,
-      hash: shard.hash,
-      docs,
-      miniSearch,
-      savedAt: Date.now()
-    };
-
-    await this.putToStore(this.SHARD_STORE, cacheKey, payload);
-  }
-
-  private async cleanupShardStorage(manifest: SearchManifest): Promise<void> {
-    try {
-      const db = await this.openDB();
-      const transaction = db.transaction([this.SHARD_STORE], 'readwrite');
-      const store = transaction.objectStore(this.SHARD_STORE);
-      const allowedKeys = new Set(
-        manifest.shards.map(shard => this.getShardCacheKey(manifest.indexVersion, shard))
-      );
-
-      const keys = await new Promise<IDBValidKey[]>((resolve, reject) => {
-        const request = store.getAllKeys();
-        request.onsuccess = () => resolve(request.result);
-        request.onerror = () => reject(request.error);
-      });
-
-      await Promise.all(keys.map((key) => {
-        const keyString = String(key);
-        if (allowedKeys.has(keyString)) {
-          return Promise.resolve();
-        }
-
-        return new Promise<void>((resolve, reject) => {
-          const deleteRequest = store.delete(key);
-          deleteRequest.onsuccess = () => resolve();
-          deleteRequest.onerror = () => reject(deleteRequest.error);
-        });
-      }));
-
-      db.close();
-    } catch (error) {
-      console.error('Error cleaning stale shard cache:', error);
     }
   }
 
@@ -512,161 +286,100 @@ class SearchIndexService {
       return this.manifestPromise;
     }
 
-    this.manifestPromise = (async () => {
-      const networkManifest = await this.fetchManifestFromNetwork();
-      if (networkManifest) {
-        this.manifest = networkManifest;
-        void this.saveManifestToStorage(networkManifest);
-        void this.cleanupShardStorage(networkManifest);
-        return networkManifest;
-      }
-
-      const storedManifest = await this.loadManifestFromStorage();
-      if (storedManifest) {
-        this.manifest = storedManifest;
-        return storedManifest;
-      }
-
-      return null;
-    })();
-
+    this.manifestPromise = this.fetchManifest();
     try {
-      return await this.manifestPromise;
+      const manifest = await this.manifestPromise;
+      if (manifest) {
+        this.manifest = manifest;
+      }
+      return manifest;
     } finally {
       this.manifestPromise = null;
     }
   }
 
-  private async fetchShardFromNetwork(shard: SearchManifestShard): Promise<{ docs: IndexedContent[]; miniSearch: AsPlainObject } | null> {
-    try {
-      const [docsResponse, miniResponse] = await Promise.all([
-        fetch(`/search/${shard.docsFile}`),
-        fetch(`/search/${shard.miniFile}`)
-      ]);
-
-      if (!docsResponse.ok || !miniResponse.ok) {
-        return null;
-      }
-
-      const docs = await docsResponse.json();
-      const miniSearch = await miniResponse.json();
-
-      if (!Array.isArray(docs) || !miniSearch || typeof miniSearch !== 'object') {
-        return null;
-      }
-
-      return {
-        docs: docs as IndexedContent[],
-        miniSearch: miniSearch as AsPlainObject
-      };
-    } catch {
-      return null;
-    }
-  }
-
-  private async loadShard(manifest: SearchManifest, shard: SearchManifestShard): Promise<LoadedSearchShard | null> {
+  private async loadShard(shard: SearchManifestShard): Promise<PrebuiltShard | null> {
     if (this.loadedShards.has(shard.id)) {
       return this.loadedShards.get(shard.id) ?? null;
     }
 
-    const existingPromise = this.shardLoadPromises.get(shard.id);
+    const existingPromise = this.shardPromises.get(shard.id);
     if (existingPromise) {
       return existingPromise;
     }
 
     const loadPromise = (async () => {
-      const cacheKey = this.getShardCacheKey(manifest.indexVersion, shard);
-      const cachedShard = await this.loadShardFromStorage(cacheKey);
-
-      if (cachedShard) {
-        const hydrated: LoadedSearchShard = {
-          ...cachedShard,
-          meta: shard
-        };
-        this.loadedShards.set(shard.id, hydrated);
-        return hydrated;
-      }
-
-      const fetchedShard = await this.fetchShardFromNetwork(shard);
-      if (!fetchedShard) {
-        return null;
-      }
-
       try {
+        const [docsResponse, miniResponse] = await Promise.all([
+          fetch(`/search/${shard.docsFile}`),
+          fetch(`/search/${shard.miniFile}`)
+        ]);
+
+        if (!docsResponse.ok || !miniResponse.ok) {
+          return null;
+        }
+
+        const docs = await docsResponse.json();
+        const miniSearchRaw = await miniResponse.json();
+
+        if (!Array.isArray(docs) || !miniSearchRaw || typeof miniSearchRaw !== 'object') {
+          return null;
+        }
+
         const miniSearch = MiniSearch.loadJS<IndexedSearchDocument>(
-          fetchedShard.miniSearch,
+          miniSearchRaw as AsPlainObject,
           this.getMiniSearchOptions()
         );
 
-        const loaded: LoadedSearchShard = {
+        const loaded: PrebuiltShard = {
           meta: shard,
-          docs: fetchedShard.docs,
+          docs: docs as IndexedContent[],
           miniSearch
         };
 
         this.loadedShards.set(shard.id, loaded);
-        void this.saveShardToStorage(
-          cacheKey,
-          manifest.indexVersion,
-          shard,
-          fetchedShard.docs,
-          fetchedShard.miniSearch
-        );
-
         return loaded;
       } catch {
         return null;
       }
     })();
 
-    this.shardLoadPromises.set(shard.id, loadPromise);
+    this.shardPromises.set(shard.id, loadPromise);
 
     try {
       return await loadPromise;
     } finally {
-      this.shardLoadPromises.delete(shard.id);
+      this.shardPromises.delete(shard.id);
     }
   }
 
-  private async preloadShards(
-    manifest: SearchManifest,
+  private async loadShards(
     shards: SearchManifestShard[],
-    onProgress?: (progress: number) => void,
-    concurrency: number = 2
-  ): Promise<number> {
+    onProgress?: (progress: number) => void
+  ): Promise<{ requested: number; loaded: number }> {
     if (shards.length === 0) {
       if (onProgress) {
         onProgress(100);
       }
-      return 0;
+      return { requested: 0, loaded: 0 };
     }
 
     let completed = 0;
-    let loadedCount = 0;
-    const queue = [...shards];
+    let loaded = 0;
 
-    const worker = async () => {
-      while (true) {
-        const shard = queue.shift();
-        if (!shard) {
-          return;
-        }
-
-        const loaded = await this.loadShard(manifest, shard);
-        if (loaded) {
-          loadedCount += 1;
-        }
-
-        completed += 1;
-        if (onProgress) {
-          onProgress((completed / shards.length) * 100);
-        }
+    for (const shard of shards) {
+      const shardResult = await this.loadShard(shard);
+      if (shardResult) {
+        loaded += 1;
       }
-    };
 
-    const workerCount = Math.max(1, Math.min(concurrency, shards.length));
-    await Promise.all(Array.from({ length: workerCount }, () => worker()));
-    return loadedCount;
+      completed += 1;
+      if (onProgress) {
+        onProgress((completed / shards.length) * 100);
+      }
+    }
+
+    return { requested: shards.length, loaded };
   }
 
   private async ensureInitialShards(onProgress?: (progress: number) => void): Promise<boolean> {
@@ -675,23 +388,23 @@ class SearchIndexService {
       return false;
     }
 
-    const recentShards = this.getShardsByRecency(manifest)
+    const initialShards = this.getShardsByRecency(manifest)
       .slice(0, Math.min(this.INITIAL_SHARD_COUNT, manifest.shards.length));
 
-    const missingShards = recentShards.filter(shard => !this.loadedShards.has(shard.id));
-    if (missingShards.length === 0) {
+    const missing = initialShards.filter(shard => !this.loadedShards.has(shard.id));
+    if (missing.length === 0) {
       if (onProgress) {
         onProgress(100);
       }
       return true;
     }
 
-    const loadedCount = await this.preloadShards(manifest, missingShards, onProgress);
-    return loadedCount === missingShards.length;
+    const { requested, loaded } = await this.loadShards(missing, onProgress);
+    return loaded === requested;
   }
 
   private async preloadRemainingShardsInBackground(): Promise<void> {
-    if (this.backgroundPreloadPromise || this.prebuiltDisabled) {
+    if (this.prebuiltDisabled || this.backgroundPreloadPromise) {
       return;
     }
 
@@ -701,15 +414,15 @@ class SearchIndexService {
         return;
       }
 
-      const remainingShards = this.getShardsByRecency(manifest)
+      const remaining = this.getShardsByRecency(manifest)
         .filter(shard => !this.loadedShards.has(shard.id));
 
-      if (remainingShards.length === 0) {
+      if (remaining.length === 0) {
         return;
       }
 
-      const loadedCount = await this.preloadShards(manifest, remainingShards, undefined, 2);
-      if (loadedCount !== remainingShards.length) {
+      const { requested, loaded } = await this.loadShards(remaining);
+      if (loaded !== requested) {
         this.useRuntimeFallback();
       }
     })();
@@ -726,198 +439,10 @@ class SearchIndexService {
     this.manifest = null;
     this.manifestPromise = null;
     this.loadedShards.clear();
-    this.shardLoadPromises.clear();
+    this.shardPromises.clear();
   }
 
-  private async loadRuntimeFromStorage(): Promise<SearchIndex | null> {
-    try {
-      const data = await this.getFromStore<StoredRuntimeIndex>(this.RUNTIME_STORE, this.RUNTIME_INDEX_KEY);
-      if (!data) return null;
-
-      if (data.version !== this.RUNTIME_INDEX_VERSION) return null;
-      if (Date.now() - data.lastUpdated > this.MAX_RUNTIME_INDEX_AGE) return null;
-
-      const miniSearch = MiniSearch.loadJS<IndexedSearchDocument>(
-        data.miniSearch,
-        this.getMiniSearchOptions()
-      );
-
-      return {
-        documents: data.documents,
-        miniSearch,
-        callIndex: new Map(Object.entries(data.callIndex)),
-        lastUpdated: data.lastUpdated
-      };
-    } catch (error) {
-      console.error('Error loading fallback runtime index from storage:', error);
-      return null;
-    }
-  }
-
-  private async saveRuntimeToStorage(index: SearchIndex): Promise<void> {
-    const data: StoredRuntimeIndex = {
-      version: this.RUNTIME_INDEX_VERSION,
-      documents: index.documents,
-      miniSearch: index.miniSearch.toJSON(),
-      callIndex: Object.fromEntries(index.callIndex.entries()),
-      lastUpdated: index.lastUpdated
-    };
-
-    await this.putToStore(this.RUNTIME_STORE, this.RUNTIME_INDEX_KEY, data);
-  }
-
-  private async fetchTextIfExists(url: string): Promise<string | null> {
-    try {
-      const response = await fetch(url);
-      if (!response.ok) return null;
-      return response.text();
-    } catch {
-      return null;
-    }
-  }
-
-  private async fetchJsonIfExists<T>(url: string): Promise<T | null> {
-    try {
-      const response = await fetch(url);
-      if (!response.ok) return null;
-      return response.json() as Promise<T>;
-    } catch {
-      return null;
-    }
-  }
-
-  private async loadCallEntries(call: CallInfo): Promise<IndexedContent[]> {
-    const baseUrl = `/artifacts/${call.type}/${call.date}_${call.number}`;
-    const transcriptPromise = this.fetchTextIfExists(`${baseUrl}/transcript_corrected.vtt`)
-      .then(async corrected => corrected ?? this.fetchTextIfExists(`${baseUrl}/transcript.vtt`));
-
-    const [transcript, chat, tldr] = await Promise.all([
-      transcriptPromise,
-      this.fetchTextIfExists(`${baseUrl}/chat.txt`),
-      this.fetchJsonIfExists<TldrData>(`${baseUrl}/tldr.json`)
-    ]);
-
-    const entries: IndexedContent[] = [];
-
-    if (transcript) {
-      entries.push(...this.parseTranscriptForIndex(transcript, call));
-    }
-    if (chat) {
-      entries.push(...this.parseChatForIndex(chat, call));
-    }
-    if (tldr) {
-      entries.push(...this.parseTldrForIndex(tldr, call));
-    }
-
-    return entries;
-  }
-
-  private async buildRuntimeIndex(onProgress?: (progress: number) => void): Promise<SearchIndex> {
-    const index: SearchIndex = {
-      documents: [],
-      miniSearch: this.createMiniSearch(),
-      callIndex: new Map(),
-      lastUpdated: Date.now()
-    };
-
-    const totalCalls = protocolCalls.length;
-    if (totalCalls === 0) {
-      await this.saveRuntimeToStorage(index);
-      return index;
-    }
-
-    const parsedCalls = new Array<{ callKey: string; entries: IndexedContent[] } | null>(totalCalls).fill(null);
-    let nextCallIndex = 0;
-    let processedCalls = 0;
-
-    const worker = async () => {
-      while (true) {
-        const callIndex = nextCallIndex;
-        nextCallIndex += 1;
-
-        if (callIndex >= totalCalls) {
-          return;
-        }
-
-        const call = protocolCalls[callIndex];
-        const callKey = `${call.type}_${call.date}_${call.number}`;
-
-        try {
-          const entries = await this.loadCallEntries(call);
-          parsedCalls[callIndex] = { callKey, entries };
-        } catch (error) {
-          console.error(`Error indexing call ${callKey}:`, error);
-          parsedCalls[callIndex] = { callKey, entries: [] };
-        } finally {
-          processedCalls += 1;
-          if (onProgress) {
-            onProgress((processedCalls / totalCalls) * 100);
-          }
-        }
-      }
-    };
-
-    const concurrency = Math.min(this.BUILD_CONCURRENCY, totalCalls);
-    await Promise.all(Array.from({ length: concurrency }, () => worker()));
-
-    for (const parsedCall of parsedCalls) {
-      if (!parsedCall || parsedCall.entries.length === 0) continue;
-
-      const callDocIndices: number[] = [];
-      const miniSearchDocs: IndexedSearchDocument[] = [];
-
-      for (const entry of parsedCall.entries) {
-        const docIndex = index.documents.length;
-        index.documents.push(entry);
-        callDocIndices.push(docIndex);
-        miniSearchDocs.push(this.toSearchDocument(entry, docIndex));
-      }
-
-      index.miniSearch.addAll(miniSearchDocs);
-      index.callIndex.set(parsedCall.callKey, callDocIndices);
-    }
-
-    await this.saveRuntimeToStorage(index);
-    return index;
-  }
-
-  private async getRuntimeIndex(onProgress?: (progress: number) => void): Promise<SearchIndex> {
-    if (this.runtimeIndex && !this.needsRuntimeRebuild()) {
-      return this.runtimeIndex;
-    }
-
-    if (this.runtimeIndex && this.needsRuntimeRebuild()) {
-      this.runtimeIndex = null;
-    }
-
-    if (this.runtimeIndexPromise) {
-      return this.runtimeIndexPromise;
-    }
-
-    const storedIndex = await this.loadRuntimeFromStorage();
-    if (storedIndex) {
-      this.runtimeIndex = storedIndex;
-      return storedIndex;
-    }
-
-    this.runtimeIndexPromise = this.buildRuntimeIndex(onProgress);
-    try {
-      this.runtimeIndex = await this.runtimeIndexPromise;
-      return this.runtimeIndex;
-    } finally {
-      this.runtimeIndexPromise = null;
-    }
-  }
-
-  private needsRuntimeRebuild(): boolean {
-    if (!this.runtimeIndex) {
-      return true;
-    }
-
-    return Date.now() - this.runtimeIndex.lastUpdated > this.MAX_RUNTIME_INDEX_AGE;
-  }
-
-  private scoreAndFilterResults(
+  private scoreAndFilter(
     rawResults: Array<{ doc: IndexedContent; score: number }>,
     queryNormalized: string,
     queryTokens: string[],
@@ -985,8 +510,6 @@ class SearchIndexService {
       }
     }
 
-    void this.preloadRemainingShardsInBackground();
-
     const rawResults: Array<{ doc: IndexedContent; score: number }> = [];
 
     for (const shard of this.loadedShards.values()) {
@@ -994,200 +517,221 @@ class SearchIndexService {
 
       for (const result of shardResults) {
         const doc = this.getDocumentFromResult(shard.docs, result);
-        if (!doc) {
-          continue;
+        if (doc) {
+          rawResults.push({ doc, score: result.score });
         }
-
-        rawResults.push({ doc, score: result.score });
       }
     }
 
-    return this.scoreAndFilterResults(rawResults, queryNormalized, queryTokens, options);
+    return this.scoreAndFilter(rawResults, queryNormalized, queryTokens, options);
   }
 
-  private async searchRuntime(
-    queryNormalized: string,
-    queryTokens: string[],
-    options: {
-      callType?: 'all' | 'ACDC' | 'ACDE' | 'ACDT';
-      contentType?: 'all' | 'transcript' | 'chat' | 'agenda' | 'action';
-      limit?: number;
-    }
-  ): Promise<IndexedContent[]> {
-    const runtimeIndex = await this.getRuntimeIndex();
-    const miniSearchResults = runtimeIndex.miniSearch.search(queryNormalized, {
-      combineWith: 'OR'
+  // Open IndexedDB (runtime fallback only)
+  private async openDB(): Promise<IDBDatabase> {
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open(this.DB_NAME, this.DB_VERSION);
+
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => resolve(request.result);
+
+      request.onupgradeneeded = (event) => {
+        const db = (event.target as IDBOpenDBRequest).result;
+        if (!db.objectStoreNames.contains(this.STORE_NAME)) {
+          db.createObjectStore(this.STORE_NAME);
+        }
+      };
     });
-
-    const rawResults: Array<{ doc: IndexedContent; score: number }> = [];
-
-    for (const result of miniSearchResults) {
-      const doc = this.getDocumentFromResult(runtimeIndex.documents, result);
-      if (!doc) {
-        continue;
-      }
-
-      rawResults.push({ doc, score: result.score });
-    }
-
-    return this.scoreAndFilterResults(rawResults, queryNormalized, queryTokens, options);
   }
 
-  async search(query: string, options: {
-    callType?: 'all' | 'ACDC' | 'ACDE' | 'ACDT';
-    contentType?: 'all' | 'transcript' | 'chat' | 'agenda' | 'action';
-    limit?: number;
-  } = {}): Promise<IndexedContent[]> {
-    this.bootstrap();
-
-    const queryNormalized = this.normalize(query);
-    if (!queryNormalized) return [];
-
-    const queryTokens = this.tokenize(queryNormalized);
-    if (queryTokens.length === 0) return [];
-
-    if (!this.prebuiltDisabled) {
-      const prebuiltResults = await this.searchPrebuilt(queryNormalized, queryTokens, options);
-      if (prebuiltResults) {
-        return prebuiltResults;
-      }
-
-      this.useRuntimeFallback();
-    }
-
-    return this.searchRuntime(queryNormalized, queryTokens, options);
-  }
-
-  async getIndex(onProgress?: (progress: number) => void): Promise<void> {
-    this.bootstrap();
-
-    if (!this.prebuiltDisabled) {
-      const ready = await this.ensureInitialShards(onProgress);
-      if (ready) {
-        void this.preloadRemainingShardsInBackground();
-        return;
-      }
-
-      this.useRuntimeFallback();
-    }
-
-    await this.getRuntimeIndex(onProgress);
-  }
-
-  async rebuildIndex(onProgress?: (progress: number) => void): Promise<void> {
-    this.runtimeIndex = null;
-    this.runtimeIndexPromise = null;
-
-    this.prebuiltDisabled = false;
-    this.manifest = null;
-    this.manifestPromise = null;
-
-    this.loadedShards.clear();
-    this.shardLoadPromises.clear();
-
-    await this.deleteFromStore(this.RUNTIME_STORE, this.RUNTIME_INDEX_KEY);
-    await this.deleteFromStore(this.META_STORE, this.MANIFEST_KEY);
-
+  // Load runtime fallback index from IndexedDB
+  private async loadFromStorage(): Promise<SearchIndex | null> {
     try {
       const db = await this.openDB();
-      const transaction = db.transaction([this.SHARD_STORE], 'readwrite');
-      const store = transaction.objectStore(this.SHARD_STORE);
+      const transaction = db.transaction([this.STORE_NAME], 'readonly');
+      const store = transaction.objectStore(this.STORE_NAME);
+
+      const data = await new Promise<StoredIndex | undefined>((resolve, reject) => {
+        const request = store.get('index');
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+
+      db.close();
+
+      if (!data) return null;
+
+      if (data.version !== this.INDEX_VERSION) return null;
+      if (Date.now() - data.lastUpdated > this.MAX_INDEX_AGE) return null;
+
+      const miniSearch = MiniSearch.loadJS<IndexedSearchDocument>(
+        data.miniSearch,
+        this.getMiniSearchOptions()
+      );
+
+      return {
+        documents: data.documents,
+        miniSearch,
+        callIndex: new Map(Object.entries(data.callIndex)),
+        lastUpdated: data.lastUpdated
+      };
+    } catch (error) {
+      console.error('Error loading search index from storage:', error);
+      return null;
+    }
+  }
+
+  // Save runtime fallback index to IndexedDB
+  private async saveToStorage(index: SearchIndex): Promise<void> {
+    try {
+      const data: StoredIndex = {
+        version: this.INDEX_VERSION,
+        documents: index.documents,
+        miniSearch: index.miniSearch.toJSON(),
+        callIndex: Object.fromEntries(index.callIndex.entries()),
+        lastUpdated: index.lastUpdated
+      };
+
+      const db = await this.openDB();
+      const transaction = db.transaction([this.STORE_NAME], 'readwrite');
+      const store = transaction.objectStore(this.STORE_NAME);
+
       await new Promise<void>((resolve, reject) => {
-        const request = store.clear();
+        const request = store.put(data, 'index');
         request.onsuccess = () => resolve();
         request.onerror = () => reject(request.error);
       });
+
       db.close();
     } catch (error) {
-      console.error('Error clearing cached shards:', error);
+      console.error('Error saving search index to storage:', error);
     }
-
-    await this.getIndex(onProgress);
   }
 
-  getLoadState(): SearchLoadState {
-    const totalShards = this.manifest?.shards.length ?? 0;
-    const loadedShards = this.loadedShards.size;
-
-    const usingFallback = this.prebuiltDisabled || !!this.runtimeIndex;
-    const mode: SearchLoadState['mode'] = usingFallback
-      ? 'runtime-fallback'
-      : this.manifest
-        ? 'prebuilt'
-        : 'uninitialized';
-
-    const prebuiltReady = loadedShards > 0;
-    const loadingShards = this.shardLoadPromises.size > 0 || !!this.backgroundPreloadPromise;
-
-    const fullyLoaded = mode === 'prebuilt'
-      ? totalShards > 0 && loadedShards >= totalShards
-      : !!this.runtimeIndex;
-
-    return {
-      mode,
-      loadedShards,
-      totalShards,
-      loadingShards,
-      prebuiltReady,
-      fullyLoaded,
-      usingFallback
-    };
-  }
-
-  needsRebuild(): boolean {
-    const state = this.getLoadState();
-    if (state.mode === 'runtime-fallback') {
-      return this.needsRuntimeRebuild();
-    }
-
-    return !state.prebuiltReady;
-  }
-
-  getStats(): { documentCount: number; tokenCount: number; callCount: number; lastUpdated: Date | null } | null {
-    const state = this.getLoadState();
-
-    if (state.mode === 'runtime-fallback' && this.runtimeIndex) {
-      return {
-        documentCount: this.runtimeIndex.documents.length,
-        tokenCount: this.runtimeIndex.miniSearch.termCount,
-        callCount: this.runtimeIndex.callIndex.size,
-        lastUpdated: new Date(this.runtimeIndex.lastUpdated)
-      };
-    }
-
-    if (state.mode !== 'prebuilt' || this.loadedShards.size === 0) {
+  private async fetchTextIfExists(url: string): Promise<string | null> {
+    try {
+      const response = await fetch(url);
+      if (!response.ok) return null;
+      return response.text();
+    } catch {
       return null;
     }
-
-    const docsCount = Array.from(this.loadedShards.values())
-      .reduce((sum, shard) => sum + shard.docs.length, 0);
-
-    const tokenCount = Array.from(this.loadedShards.values())
-      .reduce((sum, shard) => sum + shard.miniSearch.termCount, 0);
-
-    const callKeys = new Set<string>();
-    this.loadedShards.forEach(shard => {
-      shard.docs.forEach(doc => {
-        callKeys.add(`${doc.callType}_${doc.callDate}_${doc.callNumber}`);
-      });
-    });
-
-    const builtAt = this.manifest ? new Date(this.manifest.builtAt) : null;
-
-    return {
-      documentCount: docsCount,
-      tokenCount,
-      callCount: callKeys.size,
-      lastUpdated: builtAt
-    };
   }
 
+  private async fetchJsonIfExists<T>(url: string): Promise<T | null> {
+    try {
+      const response = await fetch(url);
+      if (!response.ok) return null;
+      return response.json() as Promise<T>;
+    } catch {
+      return null;
+    }
+  }
+
+  private async loadCallEntries(call: CallInfo): Promise<IndexedContent[]> {
+    const baseUrl = `/artifacts/${call.type}/${call.date}_${call.number}`;
+    const transcriptPromise = this.fetchTextIfExists(`${baseUrl}/transcript_corrected.vtt`)
+      .then(async corrected => corrected ?? this.fetchTextIfExists(`${baseUrl}/transcript.vtt`));
+
+    const [transcript, chat, tldr] = await Promise.all([
+      transcriptPromise,
+      this.fetchTextIfExists(`${baseUrl}/chat.txt`),
+      this.fetchJsonIfExists<TldrData>(`${baseUrl}/tldr.json`)
+    ]);
+
+    const entries: IndexedContent[] = [];
+
+    if (transcript) {
+      entries.push(...this.parseTranscriptForIndex(transcript, call));
+    }
+    if (chat) {
+      entries.push(...this.parseChatForIndex(chat, call));
+    }
+    if (tldr) {
+      entries.push(...this.parseTldrForIndex(tldr, call));
+    }
+
+    return entries;
+  }
+
+  // Build runtime fallback index
+  async buildIndex(onProgress?: (progress: number) => void): Promise<SearchIndex> {
+    const index: SearchIndex = {
+      documents: [],
+      miniSearch: this.createMiniSearch(),
+      callIndex: new Map(),
+      lastUpdated: Date.now()
+    };
+
+    const totalCalls = protocolCalls.length;
+    if (totalCalls === 0) {
+      await this.saveToStorage(index);
+      return index;
+    }
+
+    const parsedCalls = new Array<{ callKey: string; entries: IndexedContent[] } | null>(totalCalls).fill(null);
+    let nextCallIndex = 0;
+    let processedCalls = 0;
+
+    const worker = async () => {
+      while (true) {
+        const callIndex = nextCallIndex;
+        nextCallIndex += 1;
+
+        if (callIndex >= totalCalls) {
+          return;
+        }
+
+        const call = protocolCalls[callIndex];
+        const callKey = `${call.type}_${call.date}_${call.number}`;
+
+        try {
+          const entries = await this.loadCallEntries(call);
+          parsedCalls[callIndex] = { callKey, entries };
+        } catch (error) {
+          console.error(`Error indexing call ${callKey}:`, error);
+          parsedCalls[callIndex] = { callKey, entries: [] };
+        } finally {
+          processedCalls += 1;
+          if (onProgress) {
+            onProgress((processedCalls / totalCalls) * 100);
+          }
+        }
+      }
+    };
+
+    const concurrency = Math.min(this.BUILD_CONCURRENCY, totalCalls);
+    await Promise.all(Array.from({ length: concurrency }, () => worker()));
+
+    for (const parsedCall of parsedCalls) {
+      if (!parsedCall || parsedCall.entries.length === 0) continue;
+
+      const callDocIndices: number[] = [];
+      const miniSearchDocs: IndexedSearchDocument[] = [];
+
+      for (const entry of parsedCall.entries) {
+        const docIndex = index.documents.length;
+        index.documents.push(entry);
+        callDocIndices.push(docIndex);
+        miniSearchDocs.push(this.toSearchDocument(entry, docIndex));
+      }
+
+      index.miniSearch.addAll(miniSearchDocs);
+      index.callIndex.set(parsedCall.callKey, callDocIndices);
+    }
+
+    await this.saveToStorage(index);
+
+    return index;
+  }
+
+  // Parse transcript for indexing
   private parseTranscriptForIndex(content: string, call: CallInfo): IndexedContent[] {
     const lines = content.split('\n');
     const results: IndexedContent[] = [];
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();
+
       const timestampMatch = line.match(/(\d{2}:\d{2}:\d{2}\.\d{3})\s+-->\s+(\d{2}:\d{2}:\d{2}\.\d{3})/);
       if (timestampMatch && i + 1 < lines.length) {
         const startTime = timestampMatch[1].split('.')[0];
@@ -1224,6 +768,7 @@ class SearchIndexService {
     return results;
   }
 
+  // Parse chat for indexing
   private parseChatForIndex(content: string, call: CallInfo): IndexedContent[] {
     const lines = content.split('\n').filter(line => line.trim());
     const results: IndexedContent[] = [];
@@ -1260,6 +805,7 @@ class SearchIndexService {
     return results;
   }
 
+  // Parse TLDR for indexing
   private parseTldrForIndex(tldrData: TldrData, call: CallInfo): IndexedContent[] {
     const results: IndexedContent[] = [];
 
@@ -1326,6 +872,205 @@ class SearchIndexService {
     }
 
     return results;
+  }
+
+  // Search across prebuilt shards first, runtime fallback second.
+  async search(query: string, options: {
+    callType?: 'all' | 'ACDC' | 'ACDE' | 'ACDT';
+    contentType?: 'all' | 'transcript' | 'chat' | 'agenda' | 'action';
+    limit?: number;
+  } = {}): Promise<IndexedContent[]> {
+    this.bootstrap();
+
+    const queryNormalized = this.normalize(query);
+    if (!queryNormalized) return [];
+
+    const queryTokens = this.tokenize(queryNormalized);
+    if (queryTokens.length === 0) return [];
+
+    if (!this.prebuiltDisabled) {
+      const prebuiltResults = await this.searchPrebuilt(queryNormalized, queryTokens, options);
+      if (prebuiltResults) {
+        void this.preloadRemainingShardsInBackground();
+        return prebuiltResults;
+      }
+
+      this.useRuntimeFallback();
+    }
+
+    const index = await this.getRuntimeIndex();
+    const miniSearchResults = index.miniSearch.search(queryNormalized, {
+      combineWith: 'OR'
+    });
+
+    const rawResults: Array<{ doc: IndexedContent; score: number }> = [];
+
+    for (const result of miniSearchResults) {
+      const doc = this.getDocumentFromResult(index.documents, result);
+      if (doc) {
+        rawResults.push({ doc, score: result.score });
+      }
+    }
+
+    return this.scoreAndFilter(rawResults, queryNormalized, queryTokens, options);
+  }
+
+  private async getRuntimeIndex(onProgress?: (progress: number) => void): Promise<SearchIndex> {
+    if (this.index && !this.needsRuntimeRebuild()) {
+      return this.index;
+    }
+
+    if (this.index && this.needsRuntimeRebuild()) {
+      this.index = null;
+    }
+
+    if (this.indexPromise) {
+      return this.indexPromise;
+    }
+
+    const storedIndex = await this.loadFromStorage();
+    if (storedIndex) {
+      this.index = storedIndex;
+      return storedIndex;
+    }
+
+    this.indexPromise = this.buildIndex(onProgress);
+    try {
+      this.index = await this.indexPromise;
+      return this.index;
+    } finally {
+      this.indexPromise = null;
+    }
+  }
+
+  // Ensure search is warm: prebuilt shards if available, otherwise runtime index.
+  async getIndex(onProgress?: (progress: number) => void): Promise<void> {
+    this.bootstrap();
+
+    if (!this.prebuiltDisabled) {
+      const ready = await this.ensureInitialShards(onProgress);
+      if (ready) {
+        void this.preloadRemainingShardsInBackground();
+        return;
+      }
+
+      this.useRuntimeFallback();
+    }
+
+    await this.getRuntimeIndex(onProgress);
+  }
+
+  // Force rebuild and clear all cached state.
+  async rebuildIndex(onProgress?: (progress: number) => void): Promise<void> {
+    this.index = null;
+    this.indexPromise = null;
+
+    this.prebuiltDisabled = false;
+    this.manifest = null;
+    this.manifestPromise = null;
+    this.loadedShards.clear();
+    this.shardPromises.clear();
+
+    try {
+      const db = await this.openDB();
+      const transaction = db.transaction([this.STORE_NAME], 'readwrite');
+      const store = transaction.objectStore(this.STORE_NAME);
+      await new Promise<void>((resolve, reject) => {
+        const request = store.delete('index');
+        request.onsuccess = () => resolve();
+        request.onerror = () => reject(request.error);
+      });
+      db.close();
+    } catch (error) {
+      console.error('Error clearing runtime index cache:', error);
+    }
+
+    await this.getIndex(onProgress);
+  }
+
+  private needsRuntimeRebuild(): boolean {
+    if (!this.index) return true;
+    return Date.now() - this.index.lastUpdated > this.MAX_INDEX_AGE;
+  }
+
+  needsRebuild(): boolean {
+    const state = this.getLoadState();
+
+    if (state.mode === 'runtime-fallback') {
+      return this.needsRuntimeRebuild();
+    }
+
+    if (state.mode === 'prebuilt') {
+      return !state.prebuiltReady;
+    }
+
+    return true;
+  }
+
+  getLoadState(): SearchLoadState {
+    const totalShards = this.manifest?.shards.length ?? 0;
+    const loadedShards = this.loadedShards.size;
+
+    const usingFallback = this.prebuiltDisabled || !!this.index || !!this.indexPromise;
+    const mode: SearchLoadState['mode'] = usingFallback
+      ? 'runtime-fallback'
+      : this.manifest
+        ? 'prebuilt'
+        : 'uninitialized';
+
+    const prebuiltReady = loadedShards > 0;
+    const loadingShards = this.shardPromises.size > 0 || !!this.backgroundPreloadPromise;
+
+    const fullyLoaded = mode === 'prebuilt'
+      ? totalShards > 0 && loadedShards >= totalShards
+      : !!this.index;
+
+    return {
+      mode,
+      loadedShards,
+      totalShards,
+      loadingShards,
+      prebuiltReady,
+      fullyLoaded,
+      usingFallback
+    };
+  }
+
+  getStats(): { documentCount: number; tokenCount: number; callCount: number; lastUpdated: Date | null } | null {
+    const state = this.getLoadState();
+
+    if (state.mode === 'runtime-fallback' && this.index) {
+      return {
+        documentCount: this.index.documents.length,
+        tokenCount: this.index.miniSearch.termCount,
+        callCount: this.index.callIndex.size,
+        lastUpdated: new Date(this.index.lastUpdated)
+      };
+    }
+
+    if (state.mode !== 'prebuilt' || this.loadedShards.size === 0) {
+      return null;
+    }
+
+    const documentCount = Array.from(this.loadedShards.values())
+      .reduce((sum, shard) => sum + shard.docs.length, 0);
+
+    const tokenCount = Array.from(this.loadedShards.values())
+      .reduce((sum, shard) => sum + shard.miniSearch.termCount, 0);
+
+    const callKeys = new Set<string>();
+    this.loadedShards.forEach((shard) => {
+      shard.docs.forEach((doc) => {
+        callKeys.add(`${doc.callType}_${doc.callDate}_${doc.callNumber}`);
+      });
+    });
+
+    return {
+      documentCount,
+      tokenCount,
+      callCount: callKeys.size,
+      lastUpdated: this.manifest?.builtAt ? new Date(this.manifest.builtAt) : null
+    };
   }
 }
 
