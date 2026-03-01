@@ -39,12 +39,18 @@ export default function GlobalCallSearch({ isOpen, onClose, initialQuery = '' }:
   // Initialize search index on mount
   useEffect(() => {
     const initIndex = async () => {
-      const stats = searchIndexService.getStats();
-      if (!stats || searchIndexService.needsRebuild()) {
+      const shouldShowProgress = !searchIndexService.getStats() || searchIndexService.needsRebuild();
+      if (shouldShowProgress) {
         setIndexBuilding(true);
-        await searchIndexService.rebuildIndex((progress) => {
+      }
+
+      try {
+        await searchIndexService.getIndex((progress) => {
           setIndexProgress(progress);
         });
+      } catch (error) {
+        console.error('Error initializing search index:', error);
+      } finally {
         setIndexBuilding(false);
         setIndexProgress(0);
       }

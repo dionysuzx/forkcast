@@ -1,3 +1,4 @@
+import MiniSearch, { type AsPlainObject, type Options, type SearchResult } from 'minisearch';
 import { protocolCalls } from '../data/calls';
 
 interface CallInfo {
@@ -33,14 +34,25 @@ export interface IndexedContent {
   timestamp: string;
   speaker?: string;
   text: string;
-  tokens: string[]; // Pre-processed tokens for faster searching
-  normalizedText: string; // Lowercase text for case-insensitive search
+}
+
+interface IndexedSearchDocument extends IndexedContent {
+  id: number;
+  searchableText: string;
+}
+
+interface StoredIndex {
+  version: string;
+  documents: IndexedContent[];
+  miniSearch: AsPlainObject;
+  callIndex: Record<string, number[]>;
+  lastUpdated: number;
 }
 
 export interface SearchIndex {
   documents: IndexedContent[];
-  invertedIndex: Map<string, Set<number>>; // token -> document indices
-  callIndex: Map<string, number[]>; // call identifier -> document indices
+  miniSearch: MiniSearch<IndexedSearchDocument>;
+  callIndex: Map<string, number[]>;
   lastUpdated: number;
 }
 
@@ -51,8 +63,9 @@ class SearchIndexService {
   private readonly DB_NAME = 'forkcast_search';
   private readonly DB_VERSION = 1;
   private readonly STORE_NAME = 'search_index';
-  private readonly INDEX_VERSION = '1.0.5';
+  private readonly INDEX_VERSION = '2.0.0-minisearch';
   private readonly MAX_INDEX_AGE = 24 * 60 * 60 * 1000; // 24 hours
+  private readonly BUILD_CONCURRENCY = 8;
 
   private constructor() {}
 
@@ -63,18 +76,58 @@ class SearchIndexService {
     return SearchIndexService.instance;
   }
 
+  private getMiniSearchOptions(): Options<IndexedSearchDocument> {
+    return {
+      idField: 'id',
+      fields: ['searchableText'],
+      tokenize: (text: string) => this.tokenize(text),
+      processTerm: (term: string) => {
+        const normalized = term.toLowerCase().trim();
+        return normalized.length > 1 ? normalized : null;
+      }
+    };
+  }
+
+  private createMiniSearch(): MiniSearch<IndexedSearchDocument> {
+    return new MiniSearch<IndexedSearchDocument>(this.getMiniSearchOptions());
+  }
+
   // Tokenize text for indexing
   private tokenize(text: string): string[] {
     return text
       .toLowerCase()
-      .replace(/[^\w\s]/g, ' ') // Remove punctuation
+      .replace(/[^\w\s]/g, ' ')
       .split(/\s+/)
-      .filter(token => token.length > 1); // Filter out single characters
+      .map(token => token.trim())
+      .filter(token => token.length > 1);
   }
 
   // Normalize text for searching
   private normalize(text: string): string {
     return text.toLowerCase().trim();
+  }
+
+  private toSearchDocument(content: IndexedContent, id: number): IndexedSearchDocument {
+    const searchableText = content.speaker
+      ? `${content.speaker} ${content.text}`
+      : content.text;
+
+    return {
+      ...content,
+      id,
+      searchableText
+    };
+  }
+
+  private getDocumentFromResult(index: SearchIndex, result: SearchResult): IndexedContent | null {
+    const rawId = result.id;
+    const docIndex = typeof rawId === 'number' ? rawId : Number(rawId);
+
+    if (!Number.isInteger(docIndex) || docIndex < 0 || docIndex >= index.documents.length) {
+      return null;
+    }
+
+    return index.documents[docIndex];
   }
 
   // Open IndexedDB
@@ -101,13 +154,6 @@ class SearchIndexService {
       const transaction = db.transaction([this.STORE_NAME], 'readonly');
       const store = transaction.objectStore(this.STORE_NAME);
 
-      interface StoredIndex {
-        version: string;
-        documents: IndexedContent[];
-        invertedIndex: Record<string, number[]>;
-        callIndex: Record<string, number[]>;
-        lastUpdated: number;
-      }
       const data = await new Promise<StoredIndex | undefined>((resolve, reject) => {
         const request = store.get('index');
         request.onsuccess = () => resolve(request.result);
@@ -122,12 +168,14 @@ class SearchIndexService {
       if (data.version !== this.INDEX_VERSION) return null;
       if (Date.now() - data.lastUpdated > this.MAX_INDEX_AGE) return null;
 
-      // Reconstruct Maps from stored data
+      const miniSearch = MiniSearch.loadJS<IndexedSearchDocument>(
+        data.miniSearch,
+        this.getMiniSearchOptions()
+      );
+
       const index: SearchIndex = {
         documents: data.documents,
-        invertedIndex: new Map(
-          Object.entries(data.invertedIndex).map(([key, value]) => [key, new Set(value as number[])])
-        ),
+        miniSearch,
         callIndex: new Map(Object.entries(data.callIndex)),
         lastUpdated: data.lastUpdated
       };
@@ -142,12 +190,10 @@ class SearchIndexService {
   // Save index to IndexedDB
   private async saveToStorage(index: SearchIndex): Promise<void> {
     try {
-      const data = {
+      const data: StoredIndex = {
         version: this.INDEX_VERSION,
         documents: index.documents,
-        invertedIndex: Object.fromEntries(
-          Array.from(index.invertedIndex.entries()).map(([key, value]) => [key, Array.from(value)])
-        ),
+        miniSearch: index.miniSearch.toJSON(),
         callIndex: Object.fromEntries(index.callIndex.entries()),
         lastUpdated: index.lastUpdated
       };
@@ -168,101 +214,116 @@ class SearchIndexService {
     }
   }
 
+  private async fetchTextIfExists(url: string): Promise<string | null> {
+    try {
+      const response = await fetch(url);
+      if (!response.ok) return null;
+      return response.text();
+    } catch {
+      return null;
+    }
+  }
+
+  private async fetchJsonIfExists<T>(url: string): Promise<T | null> {
+    try {
+      const response = await fetch(url);
+      if (!response.ok) return null;
+      return response.json() as Promise<T>;
+    } catch {
+      return null;
+    }
+  }
+
+  private async loadCallEntries(call: CallInfo): Promise<IndexedContent[]> {
+    const baseUrl = `/artifacts/${call.type}/${call.date}_${call.number}`;
+    const transcriptPromise = this.fetchTextIfExists(`${baseUrl}/transcript_corrected.vtt`)
+      .then(async corrected => corrected ?? this.fetchTextIfExists(`${baseUrl}/transcript.vtt`));
+
+    const [transcript, chat, tldr] = await Promise.all([
+      transcriptPromise,
+      this.fetchTextIfExists(`${baseUrl}/chat.txt`),
+      this.fetchJsonIfExists<TldrData>(`${baseUrl}/tldr.json`)
+    ]);
+
+    const entries: IndexedContent[] = [];
+
+    if (transcript) {
+      entries.push(...this.parseTranscriptForIndex(transcript, call));
+    }
+    if (chat) {
+      entries.push(...this.parseChatForIndex(chat, call));
+    }
+    if (tldr) {
+      entries.push(...this.parseTldrForIndex(tldr, call));
+    }
+
+    return entries;
+  }
+
   // Build the search index
   async buildIndex(onProgress?: (progress: number) => void): Promise<SearchIndex> {
     const index: SearchIndex = {
       documents: [],
-      invertedIndex: new Map(),
+      miniSearch: this.createMiniSearch(),
       callIndex: new Map(),
       lastUpdated: Date.now()
     };
 
     const totalCalls = protocolCalls.length;
+    if (totalCalls === 0) {
+      await this.saveToStorage(index);
+      return index;
+    }
+
+    const parsedCalls = new Array<{ callKey: string; entries: IndexedContent[] } | null>(totalCalls).fill(null);
+    let nextCallIndex = 0;
     let processedCalls = 0;
 
-    for (const call of protocolCalls) {
-      const callKey = `${call.type}_${call.date}_${call.number}`;
+    const worker = async () => {
+      while (true) {
+        const callIndex = nextCallIndex;
+        nextCallIndex += 1;
+
+        if (callIndex >= totalCalls) {
+          return;
+        }
+
+        const call = protocolCalls[callIndex];
+        const callKey = `${call.type}_${call.date}_${call.number}`;
+
+        try {
+          const entries = await this.loadCallEntries(call);
+          parsedCalls[callIndex] = { callKey, entries };
+        } catch (error) {
+          console.error(`Error indexing call ${callKey}:`, error);
+          parsedCalls[callIndex] = { callKey, entries: [] };
+        } finally {
+          processedCalls += 1;
+          if (onProgress) {
+            onProgress((processedCalls / totalCalls) * 100);
+          }
+        }
+      }
+    };
+
+    const concurrency = Math.min(this.BUILD_CONCURRENCY, totalCalls);
+    await Promise.all(Array.from({ length: concurrency }, () => worker()));
+
+    for (const parsedCall of parsedCalls) {
+      if (!parsedCall || parsedCall.entries.length === 0) continue;
+
       const callDocIndices: number[] = [];
+      const miniSearchDocs: IndexedSearchDocument[] = [];
 
-      try {
-        // Fetch all content for this call
-        const baseUrl = `/artifacts/${call.type}/${call.date}_${call.number}`;
-
-        const [transcript, chat, tldr] = await Promise.all([
-          // Prefer corrected transcript if available
-          fetch(`${baseUrl}/transcript_corrected.vtt`).then(res => res.ok ? res.text() : null).catch(() => null)
-            .then(corrected => corrected ?? fetch(`${baseUrl}/transcript.vtt`).then(res => res.ok ? res.text() : null).catch(() => null)),
-          fetch(`${baseUrl}/chat.txt`).then(res => res.ok ? res.text() : null).catch(() => null),
-          fetch(`${baseUrl}/tldr.json`).then(res => res.ok ? res.json() : null).catch(() => null)
-        ]);
-
-        // Process transcript
-        if (transcript) {
-          const entries = this.parseTranscriptForIndex(transcript, call);
-          entries.forEach(entry => {
-            const docIndex = index.documents.length;
-            index.documents.push(entry);
-            callDocIndices.push(docIndex);
-
-            // Update inverted index
-            entry.tokens.forEach(token => {
-              if (!index.invertedIndex.has(token)) {
-                index.invertedIndex.set(token, new Set());
-              }
-              index.invertedIndex.get(token)!.add(docIndex);
-            });
-          });
-        }
-
-        // Process chat
-        if (chat) {
-          const entries = this.parseChatForIndex(chat, call);
-          entries.forEach(entry => {
-            const docIndex = index.documents.length;
-            index.documents.push(entry);
-            callDocIndices.push(docIndex);
-
-            // Update inverted index
-            entry.tokens.forEach(token => {
-              if (!index.invertedIndex.has(token)) {
-                index.invertedIndex.set(token, new Set());
-              }
-              index.invertedIndex.get(token)!.add(docIndex);
-            });
-          });
-        }
-
-        // Process TLDR (highlights, action items, decisions, targets)
-        if (tldr) {
-          const entries = this.parseTldrForIndex(tldr, call);
-          entries.forEach(entry => {
-            const docIndex = index.documents.length;
-            index.documents.push(entry);
-            callDocIndices.push(docIndex);
-
-            // Update inverted index
-            entry.tokens.forEach(token => {
-              if (!index.invertedIndex.has(token)) {
-                index.invertedIndex.set(token, new Set());
-              }
-              index.invertedIndex.get(token)!.add(docIndex);
-            });
-          });
-        }
-
-        // Update call index
-        if (callDocIndices.length > 0) {
-          index.callIndex.set(callKey, callDocIndices);
-        }
-
-      } catch (error) {
-        console.error(`Error indexing call ${callKey}:`, error);
+      for (const entry of parsedCall.entries) {
+        const docIndex = index.documents.length;
+        index.documents.push(entry);
+        callDocIndices.push(docIndex);
+        miniSearchDocs.push(this.toSearchDocument(entry, docIndex));
       }
 
-      processedCalls++;
-      if (onProgress) {
-        onProgress((processedCalls / totalCalls) * 100);
-      }
+      index.miniSearch.addAll(miniSearchDocs);
+      index.callIndex.set(parsedCall.callKey, callDocIndices);
     }
 
     // Save to storage
@@ -281,7 +342,6 @@ class SearchIndexService {
     // <timestamp> --> <timestamp>
     // <speaker>: <text>
     // <blank line>
-
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();
 
@@ -299,8 +359,8 @@ class SearchIndexService {
         }
 
         if (contentLines.length > 0) {
-          const content = contentLines.join(' ');
-          const speakerMatch = content.match(/^([^:]+):\s*(.+)/);
+          const mergedContent = contentLines.join(' ');
+          const speakerMatch = mergedContent.match(/^([^:]+):\s*(.+)/);
 
           if (speakerMatch) {
             const text = speakerMatch[2].trim();
@@ -311,9 +371,7 @@ class SearchIndexService {
               type: 'transcript',
               timestamp: startTime,
               speaker: speakerMatch[1].trim(),
-              text: text,
-              tokens: this.tokenize(text + ' ' + speakerMatch[1]),
-              normalizedText: this.normalize(text)
+              text
             });
           }
         }
@@ -357,9 +415,7 @@ class SearchIndexService {
           type: 'chat',
           timestamp,
           speaker: speaker.trim(),
-          text: message.trim(),
-          tokens: this.tokenize(message + ' ' + speaker),
-          normalizedText: this.normalize(message)
+          text: message.trim()
         });
       }
     }
@@ -382,9 +438,7 @@ class SearchIndexService {
             callNumber: call.number,
             type: 'agenda',
             timestamp: item.timestamp || '00:00:00',
-            text: item.highlight,
-            tokens: this.tokenize(item.highlight),
-            normalizedText: this.normalize(item.highlight)
+            text: item.highlight
           });
         }
       });
@@ -401,9 +455,7 @@ class SearchIndexService {
             type: 'action',
             timestamp: item.timestamp || '00:00:00',
             speaker: item.owner,
-            text: item.action,
-            tokens: this.tokenize(item.action + ' ' + (item.owner || '')),
-            normalizedText: this.normalize(item.action)
+            text: item.action
           });
         }
       });
@@ -419,9 +471,7 @@ class SearchIndexService {
             callNumber: call.number,
             type: 'agenda',
             timestamp: item.timestamp || '00:00:00',
-            text: item.decision,
-            tokens: this.tokenize(item.decision),
-            normalizedText: this.normalize(item.decision)
+            text: item.decision
           });
         }
       });
@@ -437,9 +487,7 @@ class SearchIndexService {
             callNumber: call.number,
             type: 'agenda',
             timestamp: item.timestamp || '00:00:00',
-            text: item.target,
-            tokens: this.tokenize(item.target),
-            normalizedText: this.normalize(item.target)
+            text: item.target
           });
         }
       });
@@ -454,82 +502,70 @@ class SearchIndexService {
     contentType?: 'all' | 'transcript' | 'chat' | 'agenda' | 'action';
     limit?: number;
   } = {}): Promise<IndexedContent[]> {
-    // Ensure index is loaded
     const index = await this.getIndex();
-
-    const queryTokens = this.tokenize(query);
     const queryNormalized = this.normalize(query);
+    if (!queryNormalized) return [];
 
-    // Find documents containing query tokens
-    const docScores = new Map<number, number>();
+    const queryTokens = this.tokenize(queryNormalized);
+    if (queryTokens.length === 0) return [];
 
-    // Score based on token matches
-    queryTokens.forEach(token => {
-      const docIndices = index.invertedIndex.get(token);
-      if (docIndices) {
-        docIndices.forEach(docIndex => {
-          const currentScore = docScores.get(docIndex) || 0;
-          docScores.set(docIndex, currentScore + 1);
-        });
-      }
+    const miniSearchResults = index.miniSearch.search(queryNormalized, {
+      combineWith: 'OR'
     });
 
-    // Get documents with scores
     const scoredDocs: Array<{ doc: IndexedContent; score: number }> = [];
 
-    docScores.forEach((score, docIndex) => {
-      const doc = index.documents[docIndex];
+    for (const result of miniSearchResults) {
+      const doc = this.getDocumentFromResult(index, result);
+      if (!doc) continue;
 
       // Apply filters
       if (options.callType && options.callType !== 'all' && doc.callType.toUpperCase() !== options.callType) {
-        return;
+        continue;
       }
       if (options.contentType && options.contentType !== 'all' && doc.type !== options.contentType) {
-        return;
+        continue;
       }
 
-      // Calculate final score
-      let finalScore = score;
+      const searchableText = this.normalize(doc.speaker ? `${doc.speaker} ${doc.text}` : doc.text);
 
-      // Bonus for exact phrase match
-      if (doc.normalizedText.includes(queryNormalized)) {
+      // Keep previous ranking boosts for result quality parity.
+      let finalScore = result.score;
+      if (searchableText.includes(queryNormalized)) {
         finalScore += 10;
       }
-
-      // Bonus for all tokens present
-      const allTokensPresent = queryTokens.every(token =>
-        doc.tokens.includes(token)
-      );
-      if (allTokensPresent) {
+      if (queryTokens.every(token => searchableText.includes(token))) {
         finalScore += 5;
       }
-
-      // Type bonuses
       if (doc.type === 'action') finalScore += 3;
       if (doc.type === 'agenda') finalScore += 2;
 
       scoredDocs.push({ doc, score: finalScore });
-    });
+    }
 
     // Sort by score and date
     scoredDocs.sort((a, b) => {
       const scoreDiff = b.score - a.score;
-      if (Math.abs(scoreDiff) > 1) return scoreDiff;
+      if (Math.abs(scoreDiff) > 0.01) return scoreDiff;
 
       // For similar scores, sort by date (newest first)
       return b.doc.callDate.localeCompare(a.doc.callDate);
     });
 
-    // Apply limit
     const limit = options.limit || 100;
     return scoredDocs.slice(0, limit).map(item => item.doc);
   }
 
   // Get or build the index
-  async getIndex(): Promise<SearchIndex> {
-    // Return existing index if available
-    if (this.index) {
+  async getIndex(onProgress?: (progress: number) => void): Promise<SearchIndex> {
+    // Return existing in-memory index when still fresh.
+    if (this.index && !this.needsRebuild()) {
       return this.index;
+    }
+
+    // Drop stale in-memory index so cache/build path below can refresh it.
+    if (this.index && this.needsRebuild()) {
+      this.index = null;
     }
 
     // Return ongoing index build if in progress
@@ -544,12 +580,13 @@ class SearchIndexService {
       return storedIndex;
     }
 
-    // Build new index
-    this.indexPromise = this.buildIndex();
-    this.index = await this.indexPromise;
-    this.indexPromise = null;
-
-    return this.index;
+    this.indexPromise = this.buildIndex(onProgress);
+    try {
+      this.index = await this.indexPromise;
+      return this.index;
+    } finally {
+      this.indexPromise = null;
+    }
   }
 
   // Force rebuild the index
@@ -572,7 +609,12 @@ class SearchIndexService {
       console.error('Error clearing index:', error);
     }
 
-    await this.buildIndex(onProgress);
+    this.indexPromise = this.buildIndex(onProgress);
+    try {
+      this.index = await this.indexPromise;
+    } finally {
+      this.indexPromise = null;
+    }
   }
 
   // Check if index needs rebuilding
@@ -587,7 +629,7 @@ class SearchIndexService {
 
     return {
       documentCount: this.index.documents.length,
-      tokenCount: this.index.invertedIndex.size,
+      tokenCount: this.index.miniSearch.termCount,
       callCount: this.index.callIndex.size,
       lastUpdated: new Date(this.index.lastUpdated)
     };
