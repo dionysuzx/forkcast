@@ -37,7 +37,7 @@ export interface IndexedContent {
   text: string;
 }
 
-const MINISEARCH_OPTIONS = {
+const MINISEARCH_OPTIONS: MiniSearch.Options<IndexedContent> = {
   fields: ['text', 'speaker'],
   storeFields: [
     'callType',
@@ -53,7 +53,7 @@ const MINISEARCH_OPTIONS = {
     prefix: true,
     fuzzy: 0.2,
   },
-} as const;
+};
 
 class SearchIndexService {
   private static instance: SearchIndexService;
