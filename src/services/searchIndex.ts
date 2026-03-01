@@ -1,4 +1,4 @@
-import MiniSearch from 'minisearch';
+import MiniSearch, { type Options as MiniSearchOptions } from 'minisearch';
 import { protocolCalls } from '../data/calls';
 
 interface CallInfo {
@@ -37,7 +37,7 @@ export interface IndexedContent {
   text: string;
 }
 
-const MINISEARCH_OPTIONS: MiniSearch.Options<IndexedContent> = {
+const MINISEARCH_OPTIONS: MiniSearchOptions<IndexedContent> = {
   fields: ['text', 'speaker'],
   storeFields: [
     'callType',
