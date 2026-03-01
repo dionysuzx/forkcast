@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { searchIndexService } from '../services/searchIndex';
+import { searchIndexService, type SearchLoadState } from '../services/searchIndex';
 import { formatDate } from '../utils/date';
 import { debounce } from '../utils/debounce';
 
@@ -33,32 +33,49 @@ export default function GlobalCallSearch({ isOpen, onClose, initialQuery = '' }:
   const [filterType, setFilterType] = useState<'all' | 'transcript' | 'chat' | 'agenda' | 'action'>('all');
   const [callTypeFilter, setCallTypeFilter] = useState<'all' | 'ACDC' | 'ACDE' | 'ACDT'>('all');
   const [searchStats, setSearchStats] = useState<{ total: number; shown: number } | null>(null);
+  const [loadState, setLoadState] = useState<SearchLoadState>(() => searchIndexService.getLoadState());
   const inputRef = useRef<HTMLInputElement>(null);
   const resultsContainerRef = useRef<HTMLDivElement>(null);
 
   // Initialize search index on mount
   useEffect(() => {
+    let mounted = true;
+    let intervalId: number | undefined;
+
     const initIndex = async () => {
-      const shouldShowProgress = !searchIndexService.getStats() || searchIndexService.needsRebuild();
-      if (shouldShowProgress) {
-        setIndexBuilding(true);
-      }
+      setIndexBuilding(true);
 
       try {
         await searchIndexService.getIndex((progress) => {
+          if (!mounted) return;
           setIndexProgress(progress);
         });
       } catch (error) {
         console.error('Error initializing search index:', error);
       } finally {
-        setIndexBuilding(false);
-        setIndexProgress(0);
+        if (mounted) {
+          setIndexBuilding(false);
+          setIndexProgress(0);
+          setLoadState(searchIndexService.getLoadState());
+        }
       }
     };
 
     if (isOpen) {
+      setLoadState(searchIndexService.getLoadState());
       initIndex();
+      intervalId = window.setInterval(() => {
+        if (!mounted) return;
+        setLoadState(searchIndexService.getLoadState());
+      }, 300);
     }
+
+    return () => {
+      mounted = false;
+      if (intervalId) {
+        window.clearInterval(intervalId);
+      }
+    };
   }, [isOpen]);
 
   // Debounced search function
@@ -161,6 +178,22 @@ export default function GlobalCallSearch({ isOpen, onClose, initialQuery = '' }:
   }, [results]);
 
   if (!isOpen) return null;
+
+  const shouldShowPrebuiltProgress = loadState.mode === 'prebuilt' && loadState.loadingShards && !loadState.fullyLoaded;
+  const waitingForInitialPrebuilt = loadState.mode === 'prebuilt' && !loadState.prebuiltReady && (indexBuilding || loadState.loadingShards);
+  const showProgress = indexBuilding || shouldShowPrebuiltProgress;
+  const prebuiltProgress = loadState.totalShards > 0
+    ? (loadState.loadedShards / loadState.totalShards) * 100
+    : 0;
+  const progressValue = loadState.mode === 'prebuilt'
+    ? prebuiltProgress
+    : indexProgress;
+  const progressLabel = loadState.mode === 'prebuilt'
+    ? 'Loading search shards...'
+    : 'Building search index...';
+  const progressDetail = loadState.mode === 'prebuilt'
+    ? `${loadState.loadedShards}/${loadState.totalShards || 0}`
+    : `${Math.round(indexProgress)}%`;
 
   const getTypeIcon = (type: GlobalSearchResult['type']) => {
     switch (type) {
@@ -296,18 +329,23 @@ export default function GlobalCallSearch({ isOpen, onClose, initialQuery = '' }:
           </div>
 
           {/* Index Building Progress */}
-          {indexBuilding && (
+          {showProgress && (
             <div className="px-3 sm:px-4 pb-3">
               <div className="flex items-center justify-between text-sm text-slate-500 dark:text-slate-400 mb-2">
-                <span>Building search index...</span>
-                <span>{Math.round(indexProgress)}%</span>
+                <span>{progressLabel}</span>
+                <span>{progressDetail}</span>
               </div>
               <div className="w-full bg-slate-200 rounded-full h-1.5 dark:bg-slate-700">
                 <div
                   className="bg-blue-600 h-1.5 rounded-full transition-all duration-300"
-                  style={{ width: `${indexProgress}%` }}
+                  style={{ width: `${Math.min(progressValue, 100)}%` }}
                 />
               </div>
+              {loadState.mode === 'prebuilt' && !loadState.fullyLoaded && (
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
+                  Searching loaded shards first, then backfilling older calls in the background.
+                </p>
+              )}
             </div>
           )}
         </div>
@@ -317,7 +355,12 @@ export default function GlobalCallSearch({ isOpen, onClose, initialQuery = '' }:
           ref={resultsContainerRef}
           className="max-h-96 sm:max-h-96 max-h-[60vh] overflow-y-auto"
         >
-          {query && results.length === 0 && !loading && !indexBuilding ? (
+          {query && waitingForInitialPrebuilt ? (
+            <div className="p-8 text-center text-slate-500 dark:text-slate-400">
+              <p className="text-sm">Loading recent search shards...</p>
+              <p className="text-xs mt-2">Results will appear as shards finish loading</p>
+            </div>
+          ) : query && results.length === 0 && !loading && !indexBuilding ? (
             <div className="p-8 text-center text-slate-500 dark:text-slate-400">
               <p className="text-sm">No results found for "{query}"</p>
               <p className="text-xs mt-2">Try different keywords or filters</p>
