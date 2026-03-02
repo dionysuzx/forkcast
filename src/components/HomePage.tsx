@@ -128,20 +128,22 @@ const HomePage = () => {
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 p-6">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
-        <div className="mb-12 text-center">
-          <div className="mb-6 flex items-center justify-end gap-2">
-            <SiteSearchTrigger
-              onOpen={() => setSearchOpen(true)}
-              placeholder="Search all calls..."
-              ariaLabel="Search all calls"
-            />
-            <ThemeToggle />
+        <div className="mb-12">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <Logo size="2xl" />
+            <div className="flex items-center gap-2">
+              <SiteSearchTrigger
+                onOpen={() => setSearchOpen(true)}
+                placeholder="Search Forkcast..."
+                ariaLabel="Search Forkcast"
+              />
+              <ThemeToggle />
+            </div>
           </div>
-          <Logo size="2xl" className="mb-4" />
-          <h2 className="text-xl font-light text-slate-700 dark:text-slate-300 tracking-tight">
+          <h2 className="text-xl font-light text-slate-700 dark:text-slate-300 tracking-tight text-center">
             Ethereum Upgrade Tracker
           </h2>
-          <p className="text-base text-slate-600 dark:text-slate-400 max-w-2xl mx-auto leading-relaxed">
+          <p className="text-base text-slate-600 dark:text-slate-400 max-w-2xl mx-auto leading-relaxed text-center">
             See what's on the horizon and how it impacts you.
           </p>
         </div>
