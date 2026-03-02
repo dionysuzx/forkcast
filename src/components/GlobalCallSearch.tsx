@@ -38,21 +38,33 @@ export default function GlobalCallSearch({ isOpen, onClose, initialQuery = '' }:
 
   // Initialize search index on mount
   useEffect(() => {
+    let isCancelled = false;
+
     const initIndex = async () => {
-      const stats = searchIndexService.getStats();
-      if (!stats || searchIndexService.needsRebuild()) {
+      try {
         setIndexBuilding(true);
-        await searchIndexService.rebuildIndex((progress) => {
-          setIndexProgress(progress);
+        await searchIndexService.getIndex((progress) => {
+          if (!isCancelled) {
+            setIndexProgress(progress);
+          }
         });
-        setIndexBuilding(false);
-        setIndexProgress(0);
+      } catch (error) {
+        console.error('Failed to initialize search index:', error);
+      } finally {
+        if (!isCancelled) {
+          setIndexBuilding(false);
+          setIndexProgress(0);
+        }
       }
     };
 
     if (isOpen) {
-      initIndex();
+      void initIndex();
     }
+
+    return () => {
+      isCancelled = true;
+    };
   }, [isOpen]);
 
   // Debounced search function
@@ -293,15 +305,21 @@ export default function GlobalCallSearch({ isOpen, onClose, initialQuery = '' }:
           {indexBuilding && (
             <div className="px-3 sm:px-4 pb-3">
               <div className="flex items-center justify-between text-sm text-slate-500 dark:text-slate-400 mb-2">
-                <span>Building search index...</span>
-                <span>{Math.round(indexProgress)}%</span>
+                <span>Preparing search index...</span>
+                {indexProgress > 0 ? <span>{Math.round(indexProgress)}%</span> : null}
               </div>
-              <div className="w-full bg-slate-200 rounded-full h-1.5 dark:bg-slate-700">
-                <div
-                  className="bg-blue-600 h-1.5 rounded-full transition-all duration-300"
-                  style={{ width: `${indexProgress}%` }}
-                />
-              </div>
+              {indexProgress > 0 ? (
+                <div className="w-full bg-slate-200 rounded-full h-1.5 dark:bg-slate-700">
+                  <div
+                    className="bg-blue-600 h-1.5 rounded-full transition-all duration-300"
+                    style={{ width: `${indexProgress}%` }}
+                  />
+                </div>
+              ) : (
+                <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                  <div className="h-full w-1/3 bg-blue-600 animate-pulse" />
+                </div>
+              )}
             </div>
           )}
         </div>

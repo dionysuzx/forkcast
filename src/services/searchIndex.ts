@@ -33,8 +33,6 @@ export interface IndexedContent {
   timestamp: string;
   speaker?: string;
   text: string;
-  tokens: string[]; // Pre-processed tokens for faster searching
-  normalizedText: string; // Lowercase text for case-insensitive search
 }
 
 export interface SearchIndex {
@@ -44,15 +42,39 @@ export interface SearchIndex {
   lastUpdated: number;
 }
 
+interface StoredIndex {
+  version: string;
+  source?: 'static' | 'runtime';
+  generatedAt?: string;
+  documents: IndexedContent[];
+  invertedIndex: Record<string, number[]>;
+  callIndex?: Record<string, number[]>;
+  lastUpdated: number;
+}
+
+interface SearchIndexVersionManifest {
+  version: string;
+  generatedAt?: string;
+}
+
 class SearchIndexService {
   private static instance: SearchIndexService;
   private index: SearchIndex | null = null;
   private indexPromise: Promise<SearchIndex> | null = null;
+  private indexVersionPromise: Promise<string> | null = null;
+  private hasManifestVersion = false;
   private readonly DB_NAME = 'forkcast_search';
   private readonly DB_VERSION = 1;
   private readonly STORE_NAME = 'search_index';
-  private readonly INDEX_VERSION = '1.0.5';
-  private readonly MAX_INDEX_AGE = 24 * 60 * 60 * 1000; // 24 hours
+  // Keep in sync with scripts/generate-search-index.mjs.
+  private readonly INDEX_SCHEMA_VERSION = '3.0.0';
+  private readonly INDEX_BUILD_CONCURRENCY = 8;
+  private readonly VERSION_MANIFEST_TIMEOUT_MS = 1200;
+  private readonly LOCAL_INDEX_VERSION = this.getIndexVersion();
+  private readonly RUNTIME_FALLBACK_VERSION = `${this.LOCAL_INDEX_VERSION}:runtime`;
+  private indexVersion = this.LOCAL_INDEX_VERSION;
+  private readonly STATIC_INDEX_PATH = `${import.meta.env.BASE_URL}search-index.json`;
+  private readonly STATIC_INDEX_VERSION_PATH = `${import.meta.env.BASE_URL}search-index-version.json`;
 
   private constructor() {}
 
@@ -61,6 +83,55 @@ class SearchIndexService {
       SearchIndexService.instance = new SearchIndexService();
     }
     return SearchIndexService.instance;
+  }
+
+  private getIndexVersion(): string {
+    // Local fallback when the static version manifest is unavailable.
+    const signature = protocolCalls
+      .map(call => `${call.type}:${call.date}:${call.number}`)
+      .join('|');
+    let hash = 0;
+    for (let i = 0; i < signature.length; i++) {
+      hash = ((hash * 31) + signature.charCodeAt(i)) >>> 0;
+    }
+
+    return `${this.INDEX_SCHEMA_VERSION}:${hash.toString(16)}`;
+  }
+
+  private async resolveIndexVersion(): Promise<string> {
+    if (this.indexVersionPromise) {
+      return this.indexVersionPromise;
+    }
+
+    this.indexVersionPromise = (async () => {
+      if (typeof window === 'undefined') {
+        return this.indexVersion;
+      }
+
+      try {
+        const cacheBustedUrl = `${this.STATIC_INDEX_VERSION_PATH}?v=${encodeURIComponent(this.LOCAL_INDEX_VERSION)}`;
+        const response = await fetch(cacheBustedUrl, { cache: 'no-cache' });
+        if (!response.ok) {
+          return this.indexVersion;
+        }
+
+        const manifest = await response.json() as SearchIndexVersionManifest;
+        if (!manifest.version) {
+          return this.indexVersion;
+        }
+
+        this.indexVersion = manifest.version;
+        this.hasManifestVersion = true;
+        return manifest.version;
+      } catch (error) {
+        console.error('Error loading search index version manifest:', error);
+        return this.indexVersion;
+      }
+    })().finally(() => {
+      this.indexVersionPromise = null;
+    });
+
+    return this.indexVersionPromise;
   }
 
   // Tokenize text for indexing
@@ -75,6 +146,38 @@ class SearchIndexService {
   // Normalize text for searching
   private normalize(text: string): string {
     return text.toLowerCase().trim();
+  }
+
+  private buildEntryTokens(entry: IndexedContent): string[] {
+    return this.tokenize(`${entry.text} ${entry.speaker ?? ''}`);
+  }
+
+  private toStoredIndex(
+    index: SearchIndex,
+    options?: { version?: string; source?: 'static' | 'runtime' }
+  ): StoredIndex {
+    return {
+      version: options?.version ?? this.indexVersion,
+      source: options?.source ?? 'runtime',
+      generatedAt: new Date().toISOString(),
+      documents: index.documents,
+      invertedIndex: Object.fromEntries(
+        Array.from(index.invertedIndex.entries()).map(([key, value]) => [key, Array.from(value)])
+      ),
+      callIndex: Object.fromEntries(index.callIndex.entries()),
+      lastUpdated: index.lastUpdated
+    };
+  }
+
+  private toRuntimeIndex(data: StoredIndex): SearchIndex {
+    return {
+      documents: data.documents,
+      invertedIndex: new Map(
+        Object.entries(data.invertedIndex).map(([key, value]) => [key, new Set(value)])
+      ),
+      callIndex: new Map(Object.entries(data.callIndex ?? {})),
+      lastUpdated: data.lastUpdated
+    };
   }
 
   // Open IndexedDB
@@ -95,19 +198,12 @@ class SearchIndexService {
   }
 
   // Load index from IndexedDB
-  private async loadFromStorage(): Promise<SearchIndex | null> {
+  private async loadFromStorage(options?: { allowRuntimeFallback?: boolean }): Promise<SearchIndex | null> {
     try {
       const db = await this.openDB();
       const transaction = db.transaction([this.STORE_NAME], 'readonly');
       const store = transaction.objectStore(this.STORE_NAME);
 
-      interface StoredIndex {
-        version: string;
-        documents: IndexedContent[];
-        invertedIndex: Record<string, number[]>;
-        callIndex: Record<string, number[]>;
-        lastUpdated: number;
-      }
       const data = await new Promise<StoredIndex | undefined>((resolve, reject) => {
         const request = store.get('index');
         request.onsuccess = () => resolve(request.result);
@@ -117,22 +213,29 @@ class SearchIndexService {
       db.close();
 
       if (!data) return null;
+      const source = data.source ?? 'runtime';
 
-      // Check version and age
-      if (data.version !== this.INDEX_VERSION) return null;
-      if (Date.now() - data.lastUpdated > this.MAX_INDEX_AGE) return null;
+      // Check version strictly when manifest/static version is known.
+      if (this.hasManifestVersion) {
+        if (data.version === this.indexVersion && source === 'static') {
+          return this.toRuntimeIndex(data);
+        }
 
-      // Reconstruct Maps from stored data
-      const index: SearchIndex = {
-        documents: data.documents,
-        invertedIndex: new Map(
-          Object.entries(data.invertedIndex).map(([key, value]) => [key, new Set(value as number[])])
-        ),
-        callIndex: new Map(Object.entries(data.callIndex)),
-        lastUpdated: data.lastUpdated
-      };
+        if (options?.allowRuntimeFallback) {
+          const schemaPrefix = `${this.INDEX_SCHEMA_VERSION}:`;
+          if (source === 'runtime' && data.version?.startsWith(schemaPrefix)) {
+            return this.toRuntimeIndex(data);
+          }
+        }
 
-      return index;
+        return null;
+      } else {
+        // If manifest lookup failed (offline/transient), allow same-schema cache.
+        const schemaPrefix = `${this.INDEX_SCHEMA_VERSION}:`;
+        if (!data.version?.startsWith(schemaPrefix)) return null;
+      }
+
+      return this.toRuntimeIndex(data);
     } catch (error) {
       console.error('Error loading search index from storage:', error);
       return null;
@@ -140,17 +243,12 @@ class SearchIndexService {
   }
 
   // Save index to IndexedDB
-  private async saveToStorage(index: SearchIndex): Promise<void> {
+  private async saveToStorage(
+    index: SearchIndex,
+    options?: { version?: string; source?: 'static' | 'runtime' }
+  ): Promise<void> {
     try {
-      const data = {
-        version: this.INDEX_VERSION,
-        documents: index.documents,
-        invertedIndex: Object.fromEntries(
-          Array.from(index.invertedIndex.entries()).map(([key, value]) => [key, Array.from(value)])
-        ),
-        callIndex: Object.fromEntries(index.callIndex.entries()),
-        lastUpdated: index.lastUpdated
-      };
+      const data = this.toStoredIndex(index, options);
 
       const db = await this.openDB();
       const transaction = db.transaction([this.STORE_NAME], 'readwrite');
@@ -168,6 +266,97 @@ class SearchIndexService {
     }
   }
 
+  private async loadFromStaticFile(onProgress?: (progress: number) => void): Promise<SearchIndex | null> {
+    try {
+      if (onProgress) {
+        onProgress(5);
+      }
+
+      const cacheBustedUrl = `${this.STATIC_INDEX_PATH}?v=${encodeURIComponent(this.indexVersion)}`;
+      const response = await fetch(cacheBustedUrl, { cache: 'force-cache' });
+      if (!response.ok) return null;
+
+      const data = await response.json() as StoredIndex;
+      if (data.version !== this.indexVersion) {
+        if (this.indexVersion === this.LOCAL_INDEX_VERSION) {
+          this.indexVersion = data.version;
+          this.hasManifestVersion = true;
+        } else {
+          return null;
+        }
+      }
+
+      const index = this.toRuntimeIndex(data);
+      await this.saveToStorage(index, { version: this.indexVersion, source: 'static' });
+
+      if (onProgress) {
+        onProgress(100);
+      }
+
+      return index;
+    } catch (error) {
+      console.error('Error loading static search index:', error);
+      return null;
+    }
+  }
+
+  private async loadCanonicalIndex(onProgress?: (progress: number) => void): Promise<SearchIndex | null> {
+    // Canonical means either manifest-matching static cache or static file.
+    const storedIndex = await this.loadFromStorage();
+    if (storedIndex) {
+      return storedIndex;
+    }
+
+    return this.loadFromStaticFile(onProgress);
+  }
+
+  private addEntriesToIndex(index: SearchIndex, callKey: string, entries: IndexedContent[]): void {
+    if (entries.length === 0) return;
+
+    const callDocIndices: number[] = [];
+
+    entries.forEach(entry => {
+      const docIndex = index.documents.length;
+      index.documents.push(entry);
+      callDocIndices.push(docIndex);
+
+      this.buildEntryTokens(entry).forEach(token => {
+        if (!index.invertedIndex.has(token)) {
+          index.invertedIndex.set(token, new Set());
+        }
+        index.invertedIndex.get(token)!.add(docIndex);
+      });
+    });
+
+    index.callIndex.set(callKey, callDocIndices);
+  }
+
+  private async fetchAndParseCall(call: CallInfo): Promise<IndexedContent[]> {
+    const baseUrl = `/artifacts/${call.type}/${call.date}_${call.number}`;
+
+    const [transcript, chat, tldr] = await Promise.all([
+      // Prefer corrected transcript if available
+      fetch(`${baseUrl}/transcript_corrected.vtt`).then(res => res.ok ? res.text() : null).catch(() => null)
+        .then(corrected => corrected ?? fetch(`${baseUrl}/transcript.vtt`).then(res => res.ok ? res.text() : null).catch(() => null)),
+      fetch(`${baseUrl}/chat.txt`).then(res => res.ok ? res.text() : null).catch(() => null),
+      fetch(`${baseUrl}/tldr.json`).then(res => res.ok ? res.json() as Promise<TldrData> : null).catch(() => null)
+    ]);
+
+    const entries: IndexedContent[] = [];
+
+    if (transcript) {
+      entries.push(...this.parseTranscriptForIndex(transcript, call));
+    }
+    if (chat) {
+      entries.push(...this.parseChatForIndex(chat, call));
+    }
+    if (tldr) {
+      entries.push(...this.parseTldrForIndex(tldr, call));
+    }
+
+    return entries;
+  }
+
   // Build the search index
   async buildIndex(onProgress?: (progress: number) => void): Promise<SearchIndex> {
     const index: SearchIndex = {
@@ -179,94 +368,34 @@ class SearchIndexService {
 
     const totalCalls = protocolCalls.length;
     let processedCalls = 0;
+    let nextCallIndex = 0;
 
-    for (const call of protocolCalls) {
-      const callKey = `${call.type}_${call.date}_${call.number}`;
-      const callDocIndices: number[] = [];
+    const worker = async (): Promise<void> => {
+      while (nextCallIndex < totalCalls) {
+        const call = protocolCalls[nextCallIndex];
+        nextCallIndex++;
+        const callKey = `${call.type}_${call.date}_${call.number}`;
 
-      try {
-        // Fetch all content for this call
-        const baseUrl = `/artifacts/${call.type}/${call.date}_${call.number}`;
-
-        const [transcript, chat, tldr] = await Promise.all([
-          // Prefer corrected transcript if available
-          fetch(`${baseUrl}/transcript_corrected.vtt`).then(res => res.ok ? res.text() : null).catch(() => null)
-            .then(corrected => corrected ?? fetch(`${baseUrl}/transcript.vtt`).then(res => res.ok ? res.text() : null).catch(() => null)),
-          fetch(`${baseUrl}/chat.txt`).then(res => res.ok ? res.text() : null).catch(() => null),
-          fetch(`${baseUrl}/tldr.json`).then(res => res.ok ? res.json() : null).catch(() => null)
-        ]);
-
-        // Process transcript
-        if (transcript) {
-          const entries = this.parseTranscriptForIndex(transcript, call);
-          entries.forEach(entry => {
-            const docIndex = index.documents.length;
-            index.documents.push(entry);
-            callDocIndices.push(docIndex);
-
-            // Update inverted index
-            entry.tokens.forEach(token => {
-              if (!index.invertedIndex.has(token)) {
-                index.invertedIndex.set(token, new Set());
-              }
-              index.invertedIndex.get(token)!.add(docIndex);
-            });
-          });
+        try {
+          const entries = await this.fetchAndParseCall(call);
+          this.addEntriesToIndex(index, callKey, entries);
+        } catch (error) {
+          console.error(`Error indexing call ${callKey}:`, error);
         }
 
-        // Process chat
-        if (chat) {
-          const entries = this.parseChatForIndex(chat, call);
-          entries.forEach(entry => {
-            const docIndex = index.documents.length;
-            index.documents.push(entry);
-            callDocIndices.push(docIndex);
-
-            // Update inverted index
-            entry.tokens.forEach(token => {
-              if (!index.invertedIndex.has(token)) {
-                index.invertedIndex.set(token, new Set());
-              }
-              index.invertedIndex.get(token)!.add(docIndex);
-            });
-          });
+        processedCalls++;
+        if (onProgress) {
+          onProgress((processedCalls / totalCalls) * 100);
         }
-
-        // Process TLDR (highlights, action items, decisions, targets)
-        if (tldr) {
-          const entries = this.parseTldrForIndex(tldr, call);
-          entries.forEach(entry => {
-            const docIndex = index.documents.length;
-            index.documents.push(entry);
-            callDocIndices.push(docIndex);
-
-            // Update inverted index
-            entry.tokens.forEach(token => {
-              if (!index.invertedIndex.has(token)) {
-                index.invertedIndex.set(token, new Set());
-              }
-              index.invertedIndex.get(token)!.add(docIndex);
-            });
-          });
-        }
-
-        // Update call index
-        if (callDocIndices.length > 0) {
-          index.callIndex.set(callKey, callDocIndices);
-        }
-
-      } catch (error) {
-        console.error(`Error indexing call ${callKey}:`, error);
       }
+    };
 
-      processedCalls++;
-      if (onProgress) {
-        onProgress((processedCalls / totalCalls) * 100);
-      }
-    }
+    const concurrency = Math.min(this.INDEX_BUILD_CONCURRENCY, totalCalls);
+    await Promise.all(Array.from({ length: concurrency }, () => worker()));
 
-    // Save to storage
-    await this.saveToStorage(index);
+    // Runtime-built indexes are explicitly marked as fallback so they
+    // never masquerade as canonical static indexes.
+    await this.saveToStorage(index, { version: this.RUNTIME_FALLBACK_VERSION, source: 'runtime' });
 
     return index;
   }
@@ -311,9 +440,7 @@ class SearchIndexService {
               type: 'transcript',
               timestamp: startTime,
               speaker: speakerMatch[1].trim(),
-              text: text,
-              tokens: this.tokenize(text + ' ' + speakerMatch[1]),
-              normalizedText: this.normalize(text)
+              text: text
             });
           }
         }
@@ -357,9 +484,7 @@ class SearchIndexService {
           type: 'chat',
           timestamp,
           speaker: speaker.trim(),
-          text: message.trim(),
-          tokens: this.tokenize(message + ' ' + speaker),
-          normalizedText: this.normalize(message)
+          text: message.trim()
         });
       }
     }
@@ -382,9 +507,7 @@ class SearchIndexService {
             callNumber: call.number,
             type: 'agenda',
             timestamp: item.timestamp || '00:00:00',
-            text: item.highlight,
-            tokens: this.tokenize(item.highlight),
-            normalizedText: this.normalize(item.highlight)
+            text: item.highlight
           });
         }
       });
@@ -401,9 +524,7 @@ class SearchIndexService {
             type: 'action',
             timestamp: item.timestamp || '00:00:00',
             speaker: item.owner,
-            text: item.action,
-            tokens: this.tokenize(item.action + ' ' + (item.owner || '')),
-            normalizedText: this.normalize(item.action)
+            text: item.action
           });
         }
       });
@@ -419,9 +540,7 @@ class SearchIndexService {
             callNumber: call.number,
             type: 'agenda',
             timestamp: item.timestamp || '00:00:00',
-            text: item.decision,
-            tokens: this.tokenize(item.decision),
-            normalizedText: this.normalize(item.decision)
+            text: item.decision
           });
         }
       });
@@ -437,9 +556,7 @@ class SearchIndexService {
             callNumber: call.number,
             type: 'agenda',
             timestamp: item.timestamp || '00:00:00',
-            text: item.target,
-            tokens: this.tokenize(item.target),
-            normalizedText: this.normalize(item.target)
+            text: item.target
           });
         }
       });
@@ -490,15 +607,16 @@ class SearchIndexService {
 
       // Calculate final score
       let finalScore = score;
+      const searchableText = this.normalize(`${doc.speaker ? `${doc.speaker} ` : ''}${doc.text}`);
 
       // Bonus for exact phrase match
-      if (doc.normalizedText.includes(queryNormalized)) {
+      if (searchableText.includes(queryNormalized)) {
         finalScore += 10;
       }
 
       // Bonus for all tokens present
       const allTokensPresent = queryTokens.every(token =>
-        doc.tokens.includes(token)
+        index.invertedIndex.get(token)?.has(docIndex) ?? false
       );
       if (allTokensPresent) {
         finalScore += 5;
@@ -526,7 +644,7 @@ class SearchIndexService {
   }
 
   // Get or build the index
-  async getIndex(): Promise<SearchIndex> {
+  async getIndex(onProgress?: (progress: number) => void): Promise<SearchIndex> {
     // Return existing index if available
     if (this.index) {
       return this.index;
@@ -537,25 +655,74 @@ class SearchIndexService {
       return this.indexPromise;
     }
 
-    // Try loading from storage
-    const storedIndex = await this.loadFromStorage();
-    if (storedIndex) {
-      this.index = storedIndex;
-      return storedIndex;
-    }
+    this.indexPromise = (async () => {
+      const versionResolution = this.resolveIndexVersion();
+      const manifestResolvedQuickly = await Promise.race([
+        versionResolution.then(() => true).catch(() => true),
+        new Promise<boolean>(resolve => {
+          setTimeout(() => resolve(false), this.VERSION_MANIFEST_TIMEOUT_MS);
+        })
+      ]);
 
-    // Build new index
-    this.indexPromise = this.buildIndex();
-    this.index = await this.indexPromise;
-    this.indexPromise = null;
+      if (manifestResolvedQuickly) {
+        const canonicalIndex = await this.loadCanonicalIndex(onProgress);
+        if (canonicalIndex) {
+          return canonicalIndex;
+        }
 
-    return this.index;
+        // If static fetch fails, use cached runtime fallback (if present)
+        // before doing another runtime rebuild.
+        const runtimeFallbackIndex = await this.loadFromStorage({ allowRuntimeFallback: true });
+        if (runtimeFallbackIndex) {
+          return runtimeFallbackIndex;
+        }
+
+        // Build new index as fallback (e.g. local dev)
+        return this.buildIndex(onProgress);
+      }
+
+      // Manifest resolution is slow/hanging: avoid blocking the UI if a cache exists.
+      const cachedIndex = await this.loadFromStorage({ allowRuntimeFallback: true });
+      if (cachedIndex) {
+        // Finish strict canonical refresh in the background once manifest resolves.
+        void versionResolution
+          .then(async () => {
+            const canonicalIndex = await this.loadCanonicalIndex();
+            if (canonicalIndex) {
+              this.index = canonicalIndex;
+            }
+          })
+          .catch(() => undefined);
+
+        return cachedIndex;
+      }
+
+      // No cache available: wait for manifest resolution and continue with canonical flow.
+      await versionResolution.catch(() => undefined);
+
+      const canonicalAfterWait = await this.loadCanonicalIndex(onProgress);
+      if (canonicalAfterWait) {
+        return canonicalAfterWait;
+      }
+
+      return this.buildIndex(onProgress);
+    })()
+      .then(builtIndex => {
+        this.index = builtIndex;
+        return builtIndex;
+      })
+      .finally(() => {
+        this.indexPromise = null;
+      });
+
+    return this.indexPromise;
   }
 
   // Force rebuild the index
   async rebuildIndex(onProgress?: (progress: number) => void): Promise<void> {
     this.index = null;
     this.indexPromise = null;
+    await this.resolveIndexVersion();
 
     // Clear IndexedDB
     try {
@@ -572,13 +739,12 @@ class SearchIndexService {
       console.error('Error clearing index:', error);
     }
 
-    await this.buildIndex(onProgress);
+    this.index = await this.buildIndex(onProgress);
   }
 
-  // Check if index needs rebuilding
-  needsRebuild(): boolean {
-    if (!this.index) return true;
-    return Date.now() - this.index.lastUpdated > this.MAX_INDEX_AGE;
+  // Warm index in the background (used on /calls page to hide modal latency).
+  async warmup(): Promise<void> {
+    await this.getIndex();
   }
 
   // Get index statistics

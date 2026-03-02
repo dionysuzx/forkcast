@@ -7,6 +7,7 @@ import { protocolCalls, callTypeNames, type Call, type CallType } from '../data/
 import { timelineEvents, type TimelineEvent } from '../data/events';
 import { fetchUpcomingCalls, type UpcomingCall } from '../utils/github';
 import GlobalCallSearch from './GlobalCallSearch';
+import { searchIndexService } from '../services/searchIndex';
 
 const CallsIndexPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -42,6 +43,44 @@ const CallsIndexPage: React.FC = () => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  // Warm search index in idle time so modal opens instantly.
+  useEffect(() => {
+    type IdleWindow = Window & {
+      requestIdleCallback?: (
+        callback: IdleRequestCallback,
+        options?: IdleRequestOptions
+      ) => number;
+      cancelIdleCallback?: (handle: number) => void;
+    };
+
+    const idleWindow = window as IdleWindow;
+    let timeoutId: number | null = null;
+    let idleHandle: number | null = null;
+
+    const warmSearchIndex = () => {
+      void searchIndexService.warmup().catch((error) => {
+        console.error('Failed to warm search index:', error);
+      });
+    };
+
+    if (idleWindow.requestIdleCallback) {
+      idleHandle = idleWindow.requestIdleCallback(() => {
+        timeoutId = window.setTimeout(warmSearchIndex, 0);
+      }, { timeout: 2500 });
+    } else {
+      timeoutId = window.setTimeout(warmSearchIndex, 1500);
+    }
+
+    return () => {
+      if (idleHandle !== null && idleWindow.cancelIdleCallback) {
+        idleWindow.cancelIdleCallback(idleHandle);
+      }
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId);
+      }
+    };
   }, []);
 
   // ACD call types (everything else is a breakout)
