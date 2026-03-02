@@ -17,6 +17,9 @@ interface GlobalSearchResult {
   matchScore?: number;
 }
 
+type ContentTypeFilter = 'all' | 'transcript' | 'chat' | 'agenda' | 'action';
+type CallTypeFilter = 'all' | 'ACDC' | 'ACDE' | 'ACDT';
+
 interface GlobalCallSearchProps {
   isOpen: boolean;
   onClose: () => void;
@@ -30,12 +33,19 @@ export default function GlobalCallSearch({ isOpen, onClose, initialQuery = '' }:
   const [indexBuilding, setIndexBuilding] = useState(false);
   const [indexProgress, setIndexProgress] = useState(0);
   const [selectedIndex, setSelectedIndex] = useState(0);
-  const [filterType, setFilterType] = useState<'all' | 'transcript' | 'chat' | 'agenda' | 'action'>('all');
-  const [callTypeFilter, setCallTypeFilter] = useState<'all' | 'ACDC' | 'ACDE' | 'ACDT'>('all');
+  const [filterType, setFilterType] = useState<ContentTypeFilter>('all');
+  const [callTypeFilter, setCallTypeFilter] = useState<CallTypeFilter>('all');
   const [searchStats, setSearchStats] = useState<{ total: number; shown: number } | null>(null);
   const [loadState, setLoadState] = useState<SearchLoadState>(() => searchIndexService.getLoadState());
   const inputRef = useRef<HTMLInputElement>(null);
   const resultsContainerRef = useRef<HTMLDivElement>(null);
+  const performSearchRef = useRef<(searchQuery: string, contentType: string, callType: string) => void>(() => undefined);
+  const latestSearchParamsRef = useRef<{ query: string; filterType: ContentTypeFilter; callTypeFilter: CallTypeFilter }>({
+    query: initialQuery,
+    filterType: 'all',
+    callTypeFilter: 'all'
+  });
+  const lastPolledLoadStateRef = useRef<SearchLoadState>(loadState);
 
   // Initialize search index on mount
   useEffect(() => {
@@ -62,12 +72,31 @@ export default function GlobalCallSearch({ isOpen, onClose, initialQuery = '' }:
     };
 
     if (isOpen) {
-      setLoadState(searchIndexService.getLoadState());
+      const initialLoadState = searchIndexService.getLoadState();
+      setLoadState(initialLoadState);
+      lastPolledLoadStateRef.current = initialLoadState;
       initIndex();
       intervalId = window.setInterval(() => {
         if (!mounted) return;
         const state = searchIndexService.getLoadState();
+        const previousState = lastPolledLoadStateRef.current;
+
         setLoadState(state);
+
+        const { query: activeQuery, filterType: activeFilterType, callTypeFilter: activeCallTypeFilter } = latestSearchParamsRef.current;
+        const hasActiveQuery = activeQuery.trim().length >= 2;
+        const shardProgressAdvanced = state.mode === 'prebuilt'
+          && (
+            state.loadedShards > previousState.loadedShards
+            || (!previousState.prebuiltReady && state.prebuiltReady)
+            || (!previousState.fullyLoaded && state.fullyLoaded)
+          );
+
+        if (hasActiveQuery && shardProgressAdvanced) {
+          performSearchRef.current(activeQuery, activeFilterType, activeCallTypeFilter);
+        }
+
+        lastPolledLoadStateRef.current = state;
         if (state.fullyLoaded && intervalId) {
           window.clearInterval(intervalId);
           intervalId = undefined;
@@ -127,6 +156,18 @@ export default function GlobalCallSearch({ isOpen, onClose, initialQuery = '' }:
       }, 300),
     []
   );
+
+  useEffect(() => {
+    performSearchRef.current = performSearch;
+  }, [performSearch]);
+
+  useEffect(() => {
+    latestSearchParamsRef.current = {
+      query,
+      filterType,
+      callTypeFilter
+    };
+  }, [query, filterType, callTypeFilter]);
 
   // Trigger search on query or filter change
   useEffect(() => {

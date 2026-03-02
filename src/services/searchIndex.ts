@@ -171,7 +171,7 @@ class SearchIndexService {
 
     const connection = nav.connection ?? nav.mozConnection ?? nav.webkitConnection;
     if (!connection) {
-      return true;
+      return false;
     }
 
     if (connection.saveData) {
@@ -179,6 +179,16 @@ class SearchIndexService {
     }
 
     return connection.effectiveType !== 'slow-2g' && connection.effectiveType !== '2g';
+  }
+
+  private getInitialShards(manifest: SearchManifest): SearchManifestShard[] {
+    return this.getShardsByRecency()
+      .slice(0, Math.min(this.INITIAL_SHARD_COUNT, manifest.shards.length));
+  }
+
+  private hasInitialShardsLoaded(manifest: SearchManifest): boolean {
+    const initialShards = this.getInitialShards(manifest);
+    return initialShards.length > 0 && initialShards.every((shard) => this.loadedShards.has(shard.id));
   }
 
   private getMiniSearchOptions(): Options<IndexedSearchDocument> {
@@ -279,6 +289,10 @@ class SearchIndexService {
 
   private async ensureManifest(): Promise<SearchManifest | null> {
     if (this.prebuiltDisabled) {
+      return this.manifest;
+    }
+
+    if (this.manifest) {
       return this.manifest;
     }
 
@@ -433,8 +447,7 @@ class SearchIndexService {
       return false;
     }
 
-    const initialShards = this.getShardsByRecency()
-      .slice(0, Math.min(this.INITIAL_SHARD_COUNT, manifest.shards.length));
+    const initialShards = this.getInitialShards(manifest);
 
     const missing = initialShards.filter(shard => !this.loadedShards.has(shard.id));
     if (missing.length === 0) {
@@ -445,31 +458,6 @@ class SearchIndexService {
     }
 
     const { requested, loaded } = await this.loadShards(missing, onProgress);
-    return loaded === requested;
-  }
-
-  private async ensureAllShardsLoaded(): Promise<boolean> {
-    const manifest = await this.ensureManifest();
-    if (!manifest || manifest.shards.length === 0) {
-      return false;
-    }
-
-    // Reuse any in-flight background preload work first.
-    if (this.backgroundPreloadPromise) {
-      await this.backgroundPreloadPromise;
-      if (this.prebuiltDisabled) {
-        return false;
-      }
-    }
-
-    const missing = this.getShardsByRecency()
-      .filter(shard => !this.loadedShards.has(shard.id));
-
-    if (missing.length === 0) {
-      return true;
-    }
-
-    const { requested, loaded } = await this.loadShards(missing);
     return loaded === requested;
   }
 
@@ -574,7 +562,7 @@ class SearchIndexService {
       return null;
     }
 
-    if (this.loadedShards.size === 0) {
+    if (!this.hasInitialShardsLoaded(manifest)) {
       const ready = await this.ensureInitialShards();
       if (!ready) {
         return null;
@@ -1004,12 +992,10 @@ class SearchIndexService {
     if (queryTokens.length === 0) return [];
 
     if (!this.prebuiltDisabled) {
-      const fullyLoaded = await this.ensureAllShardsLoaded();
-      if (fullyLoaded) {
-        const prebuiltResults = await this.searchPrebuilt(queryNormalized, queryTokens, options);
-        if (prebuiltResults) {
-          return prebuiltResults;
-        }
+      const prebuiltResults = await this.searchPrebuilt(queryNormalized, queryTokens, options);
+      if (prebuiltResults !== null) {
+        void this.preloadRemainingShardsInBackground();
+        return prebuiltResults;
       }
 
       this.useRuntimeFallback();
@@ -1126,7 +1112,8 @@ class SearchIndexService {
   }
 
   getLoadState(): SearchLoadState {
-    const totalShards = this.manifest?.shards.length ?? 0;
+    const manifest = this.manifest;
+    const totalShards = manifest?.shards.length ?? 0;
     const loadedShards = this.loadedShards.size;
 
     const usingFallback = this.prebuiltDisabled || !!this.index || !!this.indexPromise;
@@ -1136,7 +1123,7 @@ class SearchIndexService {
         ? 'prebuilt'
         : 'uninitialized';
 
-    const prebuiltReady = loadedShards > 0;
+    const prebuiltReady = manifest ? this.hasInitialShardsLoaded(manifest) : false;
     const loadingShards = this.shardPromises.size > 0 || !!this.backgroundPreloadPromise;
 
     const fullyLoaded = mode === 'prebuilt'
