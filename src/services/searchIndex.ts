@@ -555,25 +555,35 @@ class SearchIndexService {
     if (this.index && !options.revalidate) return this.index;
 
     this.indexPromise = (async () => {
-      if (this.index && options.revalidate) {
-        const shouldInvalidateInMemory = await this.shouldInvalidate(this.index.lastUpdated, this.indexCorpusHash);
+      const previousIndex = this.index;
+      const previousCorpusHash = this.indexCorpusHash;
+
+      if (previousIndex && options.revalidate) {
+        const shouldInvalidateInMemory = await this.shouldInvalidate(previousIndex.lastUpdated, previousCorpusHash);
         if (!shouldInvalidateInMemory) {
+          return previousIndex;
+        }
+      }
+
+      try {
+        const loadedIndex = await this.loadFromStorage();
+        if (loadedIndex) {
+          this.index = loadedIndex.index;
+          this.indexCorpusHash = loadedIndex.corpusHash;
           return this.index;
         }
 
-        this.index = null;
-        this.indexCorpusHash = null;
-      }
-
-      const loadedIndex = await this.loadFromStorage();
-      if (loadedIndex) {
-        this.index = loadedIndex.index;
-        this.indexCorpusHash = loadedIndex.corpusHash;
+        this.index = await this.buildIndex();
         return this.index;
+      } catch (error) {
+        if (previousIndex) {
+          this.index = previousIndex;
+          this.indexCorpusHash = previousCorpusHash;
+          console.error('Search index revalidation failed; keeping previous in-memory index:', error);
+          return previousIndex;
+        }
+        throw error;
       }
-
-      this.index = await this.buildIndex();
-      return this.index;
     })();
 
     try {
