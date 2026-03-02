@@ -8,6 +8,7 @@ import { getProposalPrefix, getLaymanTitle, getInclusionStage, isHeadlinerInAnyF
 import EipSearchModal from './eip/EipSearchModal';
 import { Tooltip } from './ui';
 import { networkUpgrades } from '../data/upgrades';
+import { shouldOpenSearchFromShortcut } from '../utils/searchShortcut';
 
 type SortField = 'number' | 'date' | 'status' | 'updated' | 'headliner';
 type SortDirection = 'asc' | 'desc';
@@ -24,13 +25,12 @@ const EipsIndexPage: React.FC = () => {
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [searchModalOpen, setSearchModalOpen] = useState(false);
 
-  // Global keyboard shortcut for search (Cmd/Ctrl+F)
+  // Global keyboard shortcut for search (Cmd/Ctrl+K)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
-        e.preventDefault();
-        setSearchModalOpen(true);
-      }
+      if (!shouldOpenSearchFromShortcut(e)) return;
+      e.preventDefault();
+      setSearchModalOpen(true);
     };
 
     window.addEventListener('keydown', handleKeyDown);

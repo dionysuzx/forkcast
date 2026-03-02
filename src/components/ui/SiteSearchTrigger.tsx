@@ -1,3 +1,5 @@
+import { getSearchShortcutAriaValue, getSearchShortcutLabel } from '../../utils/searchShortcut';
+
 interface SiteSearchTriggerProps {
   onOpen: () => void;
   placeholder: string;
@@ -5,11 +7,16 @@ interface SiteSearchTriggerProps {
 }
 
 export default function SiteSearchTrigger({ onOpen, placeholder, ariaLabel }: SiteSearchTriggerProps) {
+  const shortcutLabel = getSearchShortcutLabel();
+  const shortcutAriaValue = getSearchShortcutAriaValue();
+
   return (
     <button
+      type="button"
       onClick={onOpen}
       aria-label={ariaLabel}
-      title="Search (Cmd/Ctrl+F)"
+      aria-keyshortcuts={shortcutAriaValue}
+      title={`Open search (${shortcutLabel})`}
       className="group flex w-[136px] sm:w-[240px] items-center gap-2.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-500 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700"
     >
       <svg
@@ -27,7 +34,7 @@ export default function SiteSearchTrigger({ onOpen, placeholder, ariaLabel }: Si
       </svg>
       <span className="flex-1 truncate text-left">{placeholder}</span>
       <kbd className="hidden rounded border border-slate-200 bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-slate-500 sm:inline dark:border-slate-600 dark:bg-slate-700 dark:text-slate-400">
-        ⌘F
+        {shortcutLabel}
       </kbd>
     </button>
   );

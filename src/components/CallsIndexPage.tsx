@@ -8,6 +8,7 @@ import { protocolCalls, callTypeNames, type Call, type CallType } from '../data/
 import { timelineEvents, type TimelineEvent } from '../data/events';
 import { fetchUpcomingCalls, type UpcomingCall } from '../utils/github';
 import GlobalCallSearch from './GlobalCallSearch';
+import { shouldOpenSearchFromShortcut } from '../utils/searchShortcut';
 
 const CallsIndexPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -32,13 +33,12 @@ const CallsIndexPage: React.FC = () => {
     loadUpcomingCalls();
   }, []);
 
-  // Keyboard shortcut for search
+  // Keyboard shortcut for search (Cmd/Ctrl+K)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
-        e.preventDefault();
-        setSearchOpen(true);
-      }
+      if (!shouldOpenSearchFromShortcut(e)) return;
+      e.preventDefault();
+      setSearchOpen(true);
     };
 
     window.addEventListener('keydown', handleKeyDown);
