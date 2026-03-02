@@ -403,6 +403,39 @@ class SearchIndexService {
     return loaded === requested;
   }
 
+  private hasAllShardsLoaded(): boolean {
+    if (!this.manifest) {
+      return false;
+    }
+
+    return this.loadedShards.size >= this.manifest.shards.length;
+  }
+
+  private async ensureAllShardsLoaded(): Promise<boolean> {
+    const manifest = await this.ensureManifest();
+    if (!manifest || manifest.shards.length === 0) {
+      return false;
+    }
+
+    // Reuse any in-flight background preload work first.
+    if (this.backgroundPreloadPromise) {
+      await this.backgroundPreloadPromise;
+      if (this.prebuiltDisabled) {
+        return false;
+      }
+    }
+
+    const missing = this.getShardsByRecency(manifest)
+      .filter(shard => !this.loadedShards.has(shard.id));
+
+    if (missing.length === 0) {
+      return true;
+    }
+
+    const { requested, loaded } = await this.loadShards(missing);
+    return loaded === requested;
+  }
+
   private async preloadRemainingShardsInBackground(): Promise<void> {
     if (this.prebuiltDisabled || this.backgroundPreloadPromise) {
       return;
@@ -891,11 +924,24 @@ class SearchIndexService {
     if (!this.prebuiltDisabled) {
       const prebuiltResults = await this.searchPrebuilt(queryNormalized, queryTokens, options);
       if (prebuiltResults) {
-        void this.preloadRemainingShardsInBackground();
-        return prebuiltResults;
-      }
+        if (this.hasAllShardsLoaded()) {
+          return prebuiltResults;
+        }
 
-      this.useRuntimeFallback();
+        const fullyLoaded = await this.ensureAllShardsLoaded();
+        if (fullyLoaded) {
+          const completeResults = await this.searchPrebuilt(queryNormalized, queryTokens, options);
+          if (completeResults) {
+            return completeResults;
+          }
+        }
+
+        // If full prebuilt coverage cannot be guaranteed, switch to fallback
+        // so searches remain complete.
+        this.useRuntimeFallback();
+      } else {
+        this.useRuntimeFallback();
+      }
     }
 
     const index = await this.getRuntimeIndex();
