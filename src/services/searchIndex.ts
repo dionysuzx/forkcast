@@ -287,7 +287,8 @@ class SearchIndexService {
     }
 
     // Persist the hash for the exact corpus payload that was indexed.
-    const corpusHash = await this.hashCorpusPayload(corpusPayload);
+    // Fall back to the deployed version hash when local digest APIs are unavailable.
+    const corpusHash = (await this.hashCorpusPayload(corpusPayload)) ?? (await this.fetchCorpusHash());
     await this.saveToStorage(index, corpusHash ?? undefined);
     this.indexCorpusHash = corpusHash;
 
