@@ -69,7 +69,7 @@ class SearchIndexService {
   private readonly DB_VERSION = 1;
   private readonly STORE_NAME = 'search_index';
   private readonly INDEX_VERSION = '2.0.0';
-  private readonly MAX_INDEX_AGE = 24 * 60 * 60 * 1000; // 24 hours fallback when hash is unavailable
+  private readonly MAX_INDEX_AGE = 24 * 60 * 60 * 1000; // 24-hour hard cap to recover from stale hash caches
 
   private constructor() {}
 
@@ -123,17 +123,34 @@ class SearchIndexService {
     }
   }
 
+  // Match scripts/compile-search-corpus.mjs: sha256(JSON payload).slice(0, 12)
+  private async hashCorpusPayload(payload: string): Promise<string | null> {
+    try {
+      if (!globalThis.crypto?.subtle) return null;
+      const bytes = new TextEncoder().encode(payload);
+      const digest = await globalThis.crypto.subtle.digest('SHA-256', bytes);
+      const hex = Array.from(new Uint8Array(digest))
+        .map(byte => byte.toString(16).padStart(2, '0'))
+        .join('');
+      return hex.slice(0, 12);
+    } catch {
+      return null;
+    }
+  }
+
   private isIndexExpired(lastUpdated: number): boolean {
     return Date.now() - lastUpdated > this.MAX_INDEX_AGE;
   }
 
   // Use hash-based invalidation when available, otherwise fall back to TTL.
   private async shouldInvalidate(lastUpdated: number, storedCorpusHash: string | null): Promise<boolean> {
+    const isExpired = this.isIndexExpired(lastUpdated);
     const currentHash = await this.fetchCorpusHash();
     if (currentHash !== null) {
-      return storedCorpusHash !== currentHash;
+      if (storedCorpusHash !== currentHash) return true;
+      return isExpired;
     }
-    return this.isIndexExpired(lastUpdated);
+    return isExpired;
   }
 
   // Load index from IndexedDB (validates INDEX_VERSION + corpus hash)
@@ -232,12 +249,14 @@ class SearchIndexService {
     };
 
     let corpus: CorpusEntry[];
+    let corpusPayload: string;
     try {
       const res = await fetch('/search-corpus.json');
       if (!res.ok) {
         throw new Error(`Failed to fetch search corpus: ${res.status}`);
       }
-      corpus = await res.json();
+      corpusPayload = await res.text();
+      corpus = JSON.parse(corpusPayload) as CorpusEntry[];
     } catch (error) {
       console.error('Search corpus fetch failed:', error);
       throw error;
@@ -267,8 +286,8 @@ class SearchIndexService {
       }
     }
 
-    // Fetch corpus hash and persist
-    const corpusHash = await this.fetchCorpusHash();
+    // Persist the hash for the exact corpus payload that was indexed.
+    const corpusHash = await this.hashCorpusPayload(corpusPayload);
     await this.saveToStorage(index, corpusHash ?? undefined);
     this.indexCorpusHash = corpusHash;
 
