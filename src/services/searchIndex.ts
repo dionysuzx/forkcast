@@ -100,6 +100,7 @@ class SearchIndexService {
   // Prebuilt index state (new path)
   private manifest: SearchManifest | null = null;
   private manifestPromise: Promise<SearchManifest | null> | null = null;
+  private shardsByRecency: SearchManifestShard[] = [];
   private readonly loadedShards = new Map<string, PrebuiltShard>();
   private readonly shardPromises = new Map<string, Promise<PrebuiltShard | null>>();
   private backgroundPreloadPromise: Promise<void> | null = null;
@@ -254,8 +255,8 @@ class SearchIndexService {
     ));
   }
 
-  private getShardsByRecency(manifest: SearchManifest): SearchManifestShard[] {
-    return [...manifest.shards].sort((a, b) => b.id.localeCompare(a.id));
+  private getShardsByRecency(): SearchManifestShard[] {
+    return this.shardsByRecency;
   }
 
   private async fetchManifest(): Promise<SearchManifest | null> {
@@ -270,10 +271,7 @@ class SearchIndexService {
         return null;
       }
 
-      return {
-        ...data,
-        shards: [...data.shards].sort((a, b) => a.id.localeCompare(b.id))
-      };
+      return data;
     } catch {
       return null;
     }
@@ -281,10 +279,6 @@ class SearchIndexService {
 
   private async ensureManifest(): Promise<SearchManifest | null> {
     if (this.prebuiltDisabled) {
-      return null;
-    }
-
-    if (this.manifest) {
       return this.manifest;
     }
 
@@ -295,9 +289,10 @@ class SearchIndexService {
     this.manifestPromise = this.fetchManifest();
     try {
       const manifest = await this.manifestPromise;
-      if (manifest) {
-        this.manifest = manifest;
-      }
+      this.manifest = manifest;
+      this.shardsByRecency = manifest
+        ? [...manifest.shards].sort((a, b) => b.id.localeCompare(a.id))
+        : [];
       return manifest;
     } finally {
       this.manifestPromise = null;
@@ -391,6 +386,8 @@ class SearchIndexService {
     }
   }
 
+  private readonly SHARD_LOAD_CONCURRENCY = 4;
+
   private async loadShards(
     shards: SearchManifestShard[],
     onProgress?: (progress: number) => void
@@ -404,18 +401,28 @@ class SearchIndexService {
 
     let completed = 0;
     let loaded = 0;
+    let nextIndex = 0;
 
-    for (const shard of shards) {
-      const shardResult = await this.loadShard(shard);
-      if (shardResult) {
-        loaded += 1;
-      }
+    const worker = async () => {
+      while (true) {
+        const idx = nextIndex;
+        nextIndex += 1;
+        if (idx >= shards.length) return;
 
-      completed += 1;
-      if (onProgress) {
-        onProgress((completed / shards.length) * 100);
+        const shardResult = await this.loadShard(shards[idx]);
+        if (shardResult) {
+          loaded += 1;
+        }
+
+        completed += 1;
+        if (onProgress) {
+          onProgress((completed / shards.length) * 100);
+        }
       }
-    }
+    };
+
+    const concurrency = Math.min(this.SHARD_LOAD_CONCURRENCY, shards.length);
+    await Promise.all(Array.from({ length: concurrency }, () => worker()));
 
     return { requested: shards.length, loaded };
   }
@@ -426,7 +433,7 @@ class SearchIndexService {
       return false;
     }
 
-    const initialShards = this.getShardsByRecency(manifest)
+    const initialShards = this.getShardsByRecency()
       .slice(0, Math.min(this.INITIAL_SHARD_COUNT, manifest.shards.length));
 
     const missing = initialShards.filter(shard => !this.loadedShards.has(shard.id));
@@ -439,14 +446,6 @@ class SearchIndexService {
 
     const { requested, loaded } = await this.loadShards(missing, onProgress);
     return loaded === requested;
-  }
-
-  private hasAllShardsLoaded(): boolean {
-    if (!this.manifest) {
-      return false;
-    }
-
-    return this.loadedShards.size >= this.manifest.shards.length;
   }
 
   private async ensureAllShardsLoaded(): Promise<boolean> {
@@ -463,7 +462,7 @@ class SearchIndexService {
       }
     }
 
-    const missing = this.getShardsByRecency(manifest)
+    const missing = this.getShardsByRecency()
       .filter(shard => !this.loadedShards.has(shard.id));
 
     if (missing.length === 0) {
@@ -485,7 +484,7 @@ class SearchIndexService {
         return;
       }
 
-      const remaining = this.getShardsByRecency(manifest)
+      const remaining = this.getShardsByRecency()
         .filter(shard => !this.loadedShards.has(shard.id));
 
       if (remaining.length === 0) {
@@ -509,6 +508,7 @@ class SearchIndexService {
     this.prebuiltDisabled = true;
     this.manifest = null;
     this.manifestPromise = null;
+    this.shardsByRecency = [];
     this.loadedShards.clear();
     this.shardPromises.clear();
   }
@@ -1004,26 +1004,15 @@ class SearchIndexService {
     if (queryTokens.length === 0) return [];
 
     if (!this.prebuiltDisabled) {
-      const prebuiltResults = await this.searchPrebuilt(queryNormalized, queryTokens, options);
-      if (prebuiltResults) {
-        if (this.hasAllShardsLoaded()) {
+      const fullyLoaded = await this.ensureAllShardsLoaded();
+      if (fullyLoaded) {
+        const prebuiltResults = await this.searchPrebuilt(queryNormalized, queryTokens, options);
+        if (prebuiltResults) {
           return prebuiltResults;
         }
-
-        const fullyLoaded = await this.ensureAllShardsLoaded();
-        if (fullyLoaded) {
-          const completeResults = await this.searchPrebuilt(queryNormalized, queryTokens, options);
-          if (completeResults) {
-            return completeResults;
-          }
-        }
-
-        // If full prebuilt coverage cannot be guaranteed, switch to fallback
-        // so searches remain complete.
-        this.useRuntimeFallback();
-      } else {
-        this.useRuntimeFallback();
       }
+
+      this.useRuntimeFallback();
     }
 
     const index = await this.getRuntimeIndex();
@@ -1096,6 +1085,7 @@ class SearchIndexService {
     this.prebuiltDisabled = false;
     this.manifest = null;
     this.manifestPromise = null;
+    this.shardsByRecency = [];
     this.loadedShards.clear();
     this.shardPromises.clear();
 

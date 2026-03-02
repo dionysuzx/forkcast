@@ -66,7 +66,12 @@ export default function GlobalCallSearch({ isOpen, onClose, initialQuery = '' }:
       initIndex();
       intervalId = window.setInterval(() => {
         if (!mounted) return;
-        setLoadState(searchIndexService.getLoadState());
+        const state = searchIndexService.getLoadState();
+        setLoadState(state);
+        if (state.fullyLoaded && intervalId) {
+          window.clearInterval(intervalId);
+          intervalId = undefined;
+        }
       }, 300);
     }
 

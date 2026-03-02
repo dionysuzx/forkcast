@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { Logo } from './ui/Logo';
 import { Tooltip } from './ui/Tooltip';
 import ThemeToggle from './ui/ThemeToggle';
+import SiteSearchTrigger from './ui/SiteSearchTrigger';
 import { protocolCalls, callTypeNames, type Call, type CallType } from '../data/calls';
 import { timelineEvents, type TimelineEvent } from '../data/events';
 import { fetchUpcomingCalls, type UpcomingCall } from '../utils/github';
@@ -87,31 +88,18 @@ const CallsIndexPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
       <div className="max-w-3xl mx-auto px-6 py-8">
-        <div className="mb-6 relative">
-          <div className="absolute top-0 right-0 flex items-center gap-2">
-            <button
-              onClick={() => setSearchOpen(true)}
-              className="p-2 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 transition-colors"
-              aria-label="Search all calls"
-              title="Search (⌘F)"
-            >
-              <svg
-                className="w-5 h-5 text-slate-700 dark:text-slate-300"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                />
-              </svg>
-            </button>
-            <ThemeToggle />
+        <div className="mb-6">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <Logo size="md" />
+            <div className="flex items-center gap-2">
+              <SiteSearchTrigger
+                onOpen={() => setSearchOpen(true)}
+                placeholder="Search all calls..."
+                ariaLabel="Search all calls"
+              />
+              <ThemeToggle />
+            </div>
           </div>
-          <Logo size="md" className="mb-4" />
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Protocol Calendar</h1>

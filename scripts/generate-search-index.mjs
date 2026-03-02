@@ -55,18 +55,14 @@ function sha256(content) {
 }
 
 function readTextIfExists(filePath) {
-  if (!fs.existsSync(filePath)) {
+  try {
+    return fs.readFileSync(filePath, 'utf-8');
+  } catch {
     return null;
   }
-
-  return fs.readFileSync(filePath, 'utf-8');
 }
 
 function readJsonIfExists(filePath) {
-  if (!fs.existsSync(filePath)) {
-    return null;
-  }
-
   try {
     const raw = fs.readFileSync(filePath, 'utf-8');
     return JSON.parse(raw);
