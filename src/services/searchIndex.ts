@@ -1,9 +1,11 @@
-import { protocolCalls } from '../data/calls';
+import type { Call } from '../data/calls';
 
-interface CallInfo {
-  type: string;
-  date: string;
-  number: string;
+type CallInfo = Pick<Call, 'type' | 'date' | 'number'>;
+
+interface CorpusEntry extends CallInfo {
+  transcript?: string;
+  chat?: string;
+  tldr?: TldrData;
 }
 
 interface TldrHighlightItem {
@@ -44,15 +46,30 @@ export interface SearchIndex {
   lastUpdated: number;
 }
 
+interface StoredIndex {
+  version: string;
+  corpusHash?: string;
+  documents: IndexedContent[];
+  invertedIndex: Record<string, number[]>;
+  callIndex: Record<string, number[]>;
+  lastUpdated: number;
+}
+
+interface LoadedIndex {
+  index: SearchIndex;
+  corpusHash: string | null;
+}
+
 class SearchIndexService {
   private static instance: SearchIndexService;
   private index: SearchIndex | null = null;
+  private indexCorpusHash: string | null = null;
   private indexPromise: Promise<SearchIndex> | null = null;
   private readonly DB_NAME = 'forkcast_search';
   private readonly DB_VERSION = 1;
   private readonly STORE_NAME = 'search_index';
-  private readonly INDEX_VERSION = '1.0.5';
-  private readonly MAX_INDEX_AGE = 24 * 60 * 60 * 1000; // 24 hours
+  private readonly INDEX_VERSION = '2.0.0';
+  private readonly MAX_INDEX_AGE = 24 * 60 * 60 * 1000; // 24 hours fallback when hash is unavailable
 
   private constructor() {}
 
@@ -94,20 +111,37 @@ class SearchIndexService {
     });
   }
 
-  // Load index from IndexedDB
-  private async loadFromStorage(): Promise<SearchIndex | null> {
+  // Fetch the current corpus hash from the deployed version file
+  private async fetchCorpusHash(): Promise<string | null> {
+    try {
+      const res = await fetch('/search-corpus-version.json');
+      if (!res.ok) return null;
+      const { hash } = await res.json();
+      return hash ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  private isIndexExpired(lastUpdated: number): boolean {
+    return Date.now() - lastUpdated > this.MAX_INDEX_AGE;
+  }
+
+  // Use hash-based invalidation when available, otherwise fall back to TTL.
+  private async shouldInvalidate(lastUpdated: number, storedCorpusHash: string | null): Promise<boolean> {
+    const currentHash = await this.fetchCorpusHash();
+    if (currentHash !== null) {
+      return storedCorpusHash !== currentHash;
+    }
+    return this.isIndexExpired(lastUpdated);
+  }
+
+  // Load index from IndexedDB (validates INDEX_VERSION + corpus hash)
+  private async loadFromStorage(): Promise<LoadedIndex | null> {
     try {
       const db = await this.openDB();
       const transaction = db.transaction([this.STORE_NAME], 'readonly');
       const store = transaction.objectStore(this.STORE_NAME);
-
-      interface StoredIndex {
-        version: string;
-        documents: IndexedContent[];
-        invertedIndex: Record<string, number[]>;
-        callIndex: Record<string, number[]>;
-        lastUpdated: number;
-      }
       const data = await new Promise<StoredIndex | undefined>((resolve, reject) => {
         const request = store.get('index');
         request.onsuccess = () => resolve(request.result);
@@ -118,21 +152,24 @@ class SearchIndexService {
 
       if (!data) return null;
 
-      // Check version and age
+      // Check code version
       if (data.version !== this.INDEX_VERSION) return null;
-      if (Date.now() - data.lastUpdated > this.MAX_INDEX_AGE) return null;
+
+      const storedCorpusHash = data.corpusHash ?? null;
+      if (await this.shouldInvalidate(data.lastUpdated, storedCorpusHash)) return null;
 
       // Reconstruct Maps from stored data
-      const index: SearchIndex = {
+      return {
+        corpusHash: storedCorpusHash,
+        index: {
         documents: data.documents,
         invertedIndex: new Map(
           Object.entries(data.invertedIndex).map(([key, value]) => [key, new Set(value as number[])])
         ),
         callIndex: new Map(Object.entries(data.callIndex)),
         lastUpdated: data.lastUpdated
+        }
       };
-
-      return index;
     } catch (error) {
       console.error('Error loading search index from storage:', error);
       return null;
@@ -140,10 +177,11 @@ class SearchIndexService {
   }
 
   // Save index to IndexedDB
-  private async saveToStorage(index: SearchIndex): Promise<void> {
+  private async saveToStorage(index: SearchIndex, corpusHash?: string): Promise<void> {
     try {
       const data = {
         version: this.INDEX_VERSION,
+        corpusHash,
         documents: index.documents,
         invertedIndex: Object.fromEntries(
           Array.from(index.invertedIndex.entries()).map(([key, value]) => [key, Array.from(value)])
@@ -168,8 +206,24 @@ class SearchIndexService {
     }
   }
 
-  // Build the search index
-  async buildIndex(onProgress?: (progress: number) => void): Promise<SearchIndex> {
+  // Add entries to index, updating inverted index and call doc indices
+  private addEntries(entries: IndexedContent[], index: SearchIndex, callDocIndices: number[]): void {
+    entries.forEach(entry => {
+      const docIndex = index.documents.length;
+      index.documents.push(entry);
+      callDocIndices.push(docIndex);
+
+      entry.tokens.forEach(token => {
+        if (!index.invertedIndex.has(token)) {
+          index.invertedIndex.set(token, new Set());
+        }
+        index.invertedIndex.get(token)!.add(docIndex);
+      });
+    });
+  }
+
+  // Build the search index from the pre-compiled corpus
+  private async buildIndex(): Promise<SearchIndex> {
     const index: SearchIndex = {
       documents: [],
       invertedIndex: new Map(),
@@ -177,96 +231,46 @@ class SearchIndexService {
       lastUpdated: Date.now()
     };
 
-    const totalCalls = protocolCalls.length;
-    let processedCalls = 0;
+    let corpus: CorpusEntry[];
+    try {
+      const res = await fetch('/search-corpus.json');
+      if (!res.ok) {
+        throw new Error(`Failed to fetch search corpus: ${res.status}`);
+      }
+      corpus = await res.json();
+    } catch (error) {
+      console.error('Search corpus fetch failed:', error);
+      throw error;
+    }
 
-    for (const call of protocolCalls) {
-      const callKey = `${call.type}_${call.date}_${call.number}`;
-      const callDocIndices: number[] = [];
-
+    for (const entry of corpus) {
       try {
-        // Fetch all content for this call
-        const baseUrl = `/artifacts/${call.type}/${call.date}_${call.number}`;
+        const call: CallInfo = { type: entry.type, date: entry.date, number: entry.number };
+        const callKey = `${call.type}_${call.date}_${call.number}`;
+        const callDocIndices: number[] = [];
 
-        const [transcript, chat, tldr] = await Promise.all([
-          // Prefer corrected transcript if available
-          fetch(`${baseUrl}/transcript_corrected.vtt`).then(res => res.ok ? res.text() : null).catch(() => null)
-            .then(corrected => corrected ?? fetch(`${baseUrl}/transcript.vtt`).then(res => res.ok ? res.text() : null).catch(() => null)),
-          fetch(`${baseUrl}/chat.txt`).then(res => res.ok ? res.text() : null).catch(() => null),
-          fetch(`${baseUrl}/tldr.json`).then(res => res.ok ? res.json() : null).catch(() => null)
-        ]);
-
-        // Process transcript
-        if (transcript) {
-          const entries = this.parseTranscriptForIndex(transcript, call);
-          entries.forEach(entry => {
-            const docIndex = index.documents.length;
-            index.documents.push(entry);
-            callDocIndices.push(docIndex);
-
-            // Update inverted index
-            entry.tokens.forEach(token => {
-              if (!index.invertedIndex.has(token)) {
-                index.invertedIndex.set(token, new Set());
-              }
-              index.invertedIndex.get(token)!.add(docIndex);
-            });
-          });
+        if (entry.transcript) {
+          this.addEntries(this.parseTranscriptForIndex(entry.transcript, call), index, callDocIndices);
+        }
+        if (entry.chat) {
+          this.addEntries(this.parseChatForIndex(entry.chat, call), index, callDocIndices);
+        }
+        if (entry.tldr) {
+          this.addEntries(this.parseTldrForIndex(entry.tldr, call), index, callDocIndices);
         }
 
-        // Process chat
-        if (chat) {
-          const entries = this.parseChatForIndex(chat, call);
-          entries.forEach(entry => {
-            const docIndex = index.documents.length;
-            index.documents.push(entry);
-            callDocIndices.push(docIndex);
-
-            // Update inverted index
-            entry.tokens.forEach(token => {
-              if (!index.invertedIndex.has(token)) {
-                index.invertedIndex.set(token, new Set());
-              }
-              index.invertedIndex.get(token)!.add(docIndex);
-            });
-          });
-        }
-
-        // Process TLDR (highlights, action items, decisions, targets)
-        if (tldr) {
-          const entries = this.parseTldrForIndex(tldr, call);
-          entries.forEach(entry => {
-            const docIndex = index.documents.length;
-            index.documents.push(entry);
-            callDocIndices.push(docIndex);
-
-            // Update inverted index
-            entry.tokens.forEach(token => {
-              if (!index.invertedIndex.has(token)) {
-                index.invertedIndex.set(token, new Set());
-              }
-              index.invertedIndex.get(token)!.add(docIndex);
-            });
-          });
-        }
-
-        // Update call index
         if (callDocIndices.length > 0) {
           index.callIndex.set(callKey, callDocIndices);
         }
-
       } catch (error) {
-        console.error(`Error indexing call ${callKey}:`, error);
-      }
-
-      processedCalls++;
-      if (onProgress) {
-        onProgress((processedCalls / totalCalls) * 100);
+        console.error(`Error indexing ${entry.type} ${entry.date} #${entry.number}:`, error);
       }
     }
 
-    // Save to storage
-    await this.saveToStorage(index);
+    // Fetch corpus hash and persist
+    const corpusHash = await this.fetchCorpusHash();
+    await this.saveToStorage(index, corpusHash ?? undefined);
+    this.indexCorpusHash = corpusHash;
 
     return index;
   }
@@ -526,71 +530,42 @@ class SearchIndexService {
   }
 
   // Get or build the index
-  async getIndex(): Promise<SearchIndex> {
-    // Return existing index if available
-    if (this.index) {
+  async getIndex(options: { revalidate?: boolean } = {}): Promise<SearchIndex> {
+    if (this.indexPromise) return this.indexPromise;
+    if (this.index && !options.revalidate) return this.index;
+
+    this.indexPromise = (async () => {
+      if (this.index && options.revalidate) {
+        const shouldInvalidateInMemory = await this.shouldInvalidate(this.index.lastUpdated, this.indexCorpusHash);
+        if (!shouldInvalidateInMemory) {
+          return this.index;
+        }
+
+        this.index = null;
+        this.indexCorpusHash = null;
+      }
+
+      const loadedIndex = await this.loadFromStorage();
+      if (loadedIndex) {
+        this.index = loadedIndex.index;
+        this.indexCorpusHash = loadedIndex.corpusHash;
+        return this.index;
+      }
+
+      this.index = await this.buildIndex();
       return this.index;
-    }
+    })();
 
-    // Return ongoing index build if in progress
-    if (this.indexPromise) {
-      return this.indexPromise;
-    }
-
-    // Try loading from storage
-    const storedIndex = await this.loadFromStorage();
-    if (storedIndex) {
-      this.index = storedIndex;
-      return storedIndex;
-    }
-
-    // Build new index
-    this.indexPromise = this.buildIndex();
-    this.index = await this.indexPromise;
-    this.indexPromise = null;
-
-    return this.index;
-  }
-
-  // Force rebuild the index
-  async rebuildIndex(onProgress?: (progress: number) => void): Promise<void> {
-    this.index = null;
-    this.indexPromise = null;
-
-    // Clear IndexedDB
     try {
-      const db = await this.openDB();
-      const transaction = db.transaction([this.STORE_NAME], 'readwrite');
-      const store = transaction.objectStore(this.STORE_NAME);
-      await new Promise<void>((resolve, reject) => {
-        const request = store.delete('index');
-        request.onsuccess = () => resolve();
-        request.onerror = () => reject(request.error);
-      });
-      db.close();
-    } catch (error) {
-      console.error('Error clearing index:', error);
+      return await this.indexPromise;
+    } finally {
+      this.indexPromise = null;
     }
-
-    await this.buildIndex(onProgress);
   }
 
-  // Check if index needs rebuilding
-  needsRebuild(): boolean {
-    if (!this.index) return true;
-    return Date.now() - this.index.lastUpdated > this.MAX_INDEX_AGE;
-  }
-
-  // Get index statistics
-  getStats(): { documentCount: number; tokenCount: number; callCount: number; lastUpdated: Date | null } | null {
-    if (!this.index) return null;
-
-    return {
-      documentCount: this.index.documents.length,
-      tokenCount: this.index.invertedIndex.size,
-      callCount: this.index.callIndex.size,
-      lastUpdated: new Date(this.index.lastUpdated)
-    };
+  // Preload index in the background (fire-and-forget)
+  preload(): void {
+    this.getIndex().catch(err => console.error('Search index preload failed:', err));
   }
 }
 
