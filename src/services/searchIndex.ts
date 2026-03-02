@@ -479,10 +479,9 @@ class SearchIndexService {
         return;
       }
 
-      const { requested, loaded } = await this.loadShards(remaining);
-      if (loaded !== requested) {
-        this.useRuntimeFallback();
-      }
+      // Keep already-loaded shards available even if some background loads fail.
+      // Missing shards remain unloaded and will be retried on future preload attempts.
+      await this.loadShards(remaining);
     })();
 
     try {
