@@ -6,8 +6,9 @@
   "homepage": "https://wolovim.github.io/forkcast",
   "scripts": {
     "compile-eips": "node scripts/compile-eips.mjs",
-    "dev": "npm run compile-eips && vite",
-    "build": "npm run compile-eips && npm run lint && tsc -b && vite build && node scripts/generate-static-pages.mjs && node scripts/generate-eip-stage-changes.mjs",
+    "build-search-index": "node scripts/build-search-index.mjs",
+    "dev": "npm run compile-eips && npm run build-search-index && vite",
+    "build": "npm run compile-eips && npm run build-search-index && npm run lint && tsc -b && vite build && node scripts/generate-static-pages.mjs && node scripts/generate-eip-stage-changes.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
     "predeploy": "npm run build",
@@ -22,6 +23,7 @@
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.7",
+    "minisearch": "^7.2.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-router-dom": "^7.6.1",

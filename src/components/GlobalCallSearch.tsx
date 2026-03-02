@@ -27,8 +27,7 @@ export default function GlobalCallSearch({ isOpen, onClose, initialQuery = '' }:
   const [query, setQuery] = useState(initialQuery);
   const [results, setResults] = useState<GlobalSearchResult[]>([]);
   const [loading, setLoading] = useState(false);
-  const [indexBuilding, setIndexBuilding] = useState(false);
-  const [indexProgress, setIndexProgress] = useState(0);
+  const [indexLoading, setIndexLoading] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [filterType, setFilterType] = useState<'all' | 'transcript' | 'chat' | 'agenda' | 'action'>('all');
   const [callTypeFilter, setCallTypeFilter] = useState<'all' | 'ACDC' | 'ACDE' | 'ACDT'>('all');
@@ -36,22 +35,11 @@ export default function GlobalCallSearch({ isOpen, onClose, initialQuery = '' }:
   const inputRef = useRef<HTMLInputElement>(null);
   const resultsContainerRef = useRef<HTMLDivElement>(null);
 
-  // Initialize search index on mount
+  // Load search index on mount
   useEffect(() => {
-    const initIndex = async () => {
-      const stats = searchIndexService.getStats();
-      if (!stats || searchIndexService.needsRebuild()) {
-        setIndexBuilding(true);
-        await searchIndexService.rebuildIndex((progress) => {
-          setIndexProgress(progress);
-        });
-        setIndexBuilding(false);
-        setIndexProgress(0);
-      }
-    };
-
     if (isOpen) {
-      initIndex();
+      setIndexLoading(true);
+      searchIndexService.ensureLoaded().finally(() => setIndexLoading(false));
     }
   }, [isOpen]);
 
@@ -289,18 +277,12 @@ export default function GlobalCallSearch({ isOpen, onClose, initialQuery = '' }:
             </div>
           </div>
 
-          {/* Index Building Progress */}
-          {indexBuilding && (
+          {/* Index Loading */}
+          {indexLoading && (
             <div className="px-3 sm:px-4 pb-3">
-              <div className="flex items-center justify-between text-sm text-slate-500 dark:text-slate-400 mb-2">
-                <span>Building search index...</span>
-                <span>{Math.round(indexProgress)}%</span>
-              </div>
-              <div className="w-full bg-slate-200 rounded-full h-1.5 dark:bg-slate-700">
-                <div
-                  className="bg-blue-600 h-1.5 rounded-full transition-all duration-300"
-                  style={{ width: `${indexProgress}%` }}
-                />
+              <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
+                <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                <span>Loading search index...</span>
               </div>
             </div>
           )}
@@ -311,7 +293,7 @@ export default function GlobalCallSearch({ isOpen, onClose, initialQuery = '' }:
           ref={resultsContainerRef}
           className="max-h-96 sm:max-h-96 max-h-[60vh] overflow-y-auto"
         >
-          {query && results.length === 0 && !loading && !indexBuilding ? (
+          {query && results.length === 0 && !loading && !indexLoading ? (
             <div className="p-8 text-center text-slate-500 dark:text-slate-400">
               <p className="text-sm">No results found for "{query}"</p>
               <p className="text-xs mt-2">Try different keywords or filters</p>
