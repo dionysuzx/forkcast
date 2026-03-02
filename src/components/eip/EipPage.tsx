@@ -23,6 +23,7 @@ import {
   getCallNavigation,
 } from '../../data/calls';
 import { fetchUpcomingCalls, type UpcomingCall } from '../../utils/github';
+import { shouldOpenSearchFromShortcut } from '../../utils/searchShortcut';
 
 export const EipPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -61,8 +62,8 @@ export const EipPage: React.FC = () => {
 
   // Keyboard navigation
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    // Handle Cmd/Ctrl+F for search
-    if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
+    // Handle Cmd/Ctrl+K for search
+    if (shouldOpenSearchFromShortcut(e)) {
       e.preventDefault();
       setSearchModalOpen(true);
       return;

@@ -1,13 +1,20 @@
 import React from 'react';
+import { getSearchShortcutAriaValue, getSearchShortcutLabel } from '../../utils/searchShortcut';
 
 interface EipSearchProps {
   onOpen: () => void;
 }
 
 export const EipSearch: React.FC<EipSearchProps> = ({ onOpen }) => {
+  const searchShortcut = getSearchShortcutLabel();
+  const searchShortcutAria = getSearchShortcutAriaValue();
+
   return (
     <button
+      type="button"
       onClick={onOpen}
+      title={`Search (${searchShortcut})`}
+      aria-keyshortcuts={searchShortcutAria}
       className="flex items-center gap-2 bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2.5 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
     >
       <svg
@@ -25,7 +32,7 @@ export const EipSearch: React.FC<EipSearchProps> = ({ onOpen }) => {
       </svg>
       <span className="text-sm text-slate-500 dark:text-slate-400 hidden sm:inline">Search EIPs...</span>
       <kbd className="hidden sm:inline text-xs px-1.5 py-0.5 bg-slate-200 dark:bg-slate-600 text-slate-500 dark:text-slate-400 rounded font-mono">
-        ⌘F
+        {searchShortcut}
       </kbd>
     </button>
   );
