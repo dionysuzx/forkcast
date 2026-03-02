@@ -62,6 +62,11 @@ interface SearchManifest {
   shards: SearchManifestShard[];
 }
 
+interface CachedShardPayload {
+  docs: IndexedContent[];
+  miniSearch: AsPlainObject;
+}
+
 interface PrebuiltShard {
   meta: SearchManifestShard;
   docs: IndexedContent[];
@@ -103,8 +108,9 @@ class SearchIndexService {
 
   // Runtime fallback storage
   private readonly DB_NAME = 'forkcast_search';
-  private readonly DB_VERSION = 1;
+  private readonly DB_VERSION = 2;
   private readonly STORE_NAME = 'search_index';
+  private readonly SHARD_STORE = 'search_shards';
   private readonly INDEX_VERSION = '2.0.0-minisearch';
   private readonly MAX_INDEX_AGE = 24 * 60 * 60 * 1000; // 24 hours
   private readonly BUILD_CONCURRENCY = 8;
@@ -309,10 +315,38 @@ class SearchIndexService {
     }
 
     const loadPromise = (async () => {
+      const manifest = await this.ensureManifest();
+      if (!manifest) {
+        return null;
+      }
+
+      const cacheKey = this.buildShardCacheKey(manifest, shard);
+      const cached = await this.loadShardFromCache(cacheKey);
+      if (cached) {
+        try {
+          const loadedFromCache: PrebuiltShard = {
+            meta: shard,
+            docs: cached.docs,
+            miniSearch: MiniSearch.loadJS<IndexedSearchDocument>(
+              cached.miniSearch,
+              this.getMiniSearchOptions()
+            )
+          };
+
+          this.loadedShards.set(shard.id, loadedFromCache);
+          return loadedFromCache;
+        } catch {
+          // Ignore corrupted shard cache and re-fetch from network.
+        }
+      }
+
+      const versionTag = shard.hash ?? `${manifest.indexVersion}-${shard.id}`;
+      const query = `?v=${encodeURIComponent(versionTag)}`;
+
       try {
         const [docsResponse, miniResponse] = await Promise.all([
-          fetch(`/search/${shard.docsFile}`),
-          fetch(`/search/${shard.miniFile}`)
+          fetch(`/search/${shard.docsFile}${query}`),
+          fetch(`/search/${shard.miniFile}${query}`)
         ]);
 
         if (!docsResponse.ok || !miniResponse.ok) {
@@ -338,6 +372,10 @@ class SearchIndexService {
         };
 
         this.loadedShards.set(shard.id, loaded);
+        void this.saveShardToCache(cacheKey, {
+          docs: loaded.docs,
+          miniSearch: miniSearchRaw as AsPlainObject
+        });
         return loaded;
       } catch {
         return null;
@@ -572,8 +610,52 @@ class SearchIndexService {
         if (!db.objectStoreNames.contains(this.STORE_NAME)) {
           db.createObjectStore(this.STORE_NAME);
         }
+        if (!db.objectStoreNames.contains(this.SHARD_STORE)) {
+          db.createObjectStore(this.SHARD_STORE);
+        }
       };
     });
+  }
+
+  private buildShardCacheKey(manifest: SearchManifest, shard: SearchManifestShard): string {
+    return `${manifest.indexVersion}:${shard.id}:${shard.hash ?? ''}`;
+  }
+
+  private async loadShardFromCache(cacheKey: string): Promise<CachedShardPayload | null> {
+    try {
+      const db = await this.openDB();
+      const transaction = db.transaction([this.SHARD_STORE], 'readonly');
+      const store = transaction.objectStore(this.SHARD_STORE);
+
+      const data = await new Promise<CachedShardPayload | undefined>((resolve, reject) => {
+        const request = store.get(cacheKey);
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+
+      db.close();
+      return data ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  private async saveShardToCache(cacheKey: string, payload: CachedShardPayload): Promise<void> {
+    try {
+      const db = await this.openDB();
+      const transaction = db.transaction([this.SHARD_STORE], 'readwrite');
+      const store = transaction.objectStore(this.SHARD_STORE);
+
+      await new Promise<void>((resolve, reject) => {
+        const request = store.put(payload, cacheKey);
+        request.onsuccess = () => resolve();
+        request.onerror = () => reject(request.error);
+      });
+
+      db.close();
+    } catch (error) {
+      console.error('Error saving shard cache:', error);
+    }
   }
 
   // Load runtime fallback index from IndexedDB
@@ -654,7 +736,7 @@ class SearchIndexService {
     try {
       const response = await fetch(url);
       if (!response.ok) return null;
-      return response.json() as Promise<T>;
+      return await response.json() as T;
     } catch {
       return null;
     }

@@ -16,6 +16,7 @@ dist-ssr
 
 # Compiled EIPs (generated from src/data/eips/*.json)
 src/data/eips.json
+public/search/
 
 # Editor directories and files
 .vscode/*
