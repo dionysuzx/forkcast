@@ -70,6 +70,7 @@ class SearchIndexService {
   private readonly STORE_NAME = 'search_index';
   private readonly INDEX_VERSION = '2.0.0';
   private readonly MAX_INDEX_AGE = 24 * 60 * 60 * 1000; // 24-hour hard cap to recover from stale hash caches
+  private readonly HASH_MISMATCH_RETRY_AGE = 10 * 60 * 1000; // Avoid tight rebuild loops when hash endpoint is cache-skewed
 
   private constructor() {}
 
@@ -142,19 +143,26 @@ class SearchIndexService {
     return Date.now() - lastUpdated > this.MAX_INDEX_AGE;
   }
 
+  private shouldRetryAfterHashMismatch(lastUpdated: number): boolean {
+    return Date.now() - lastUpdated > this.HASH_MISMATCH_RETRY_AGE;
+  }
+
   // Use hash-based invalidation when available, otherwise fall back to TTL.
   private async shouldInvalidate(lastUpdated: number, storedCorpusHash: string | null): Promise<boolean> {
     const isExpired = this.isIndexExpired(lastUpdated);
     const currentHash = await this.fetchCorpusHash();
     if (currentHash !== null) {
-      if (storedCorpusHash !== currentHash) return true;
+      if (storedCorpusHash !== currentHash) {
+        if (isExpired) return true;
+        return this.shouldRetryAfterHashMismatch(lastUpdated);
+      }
       return isExpired;
     }
     return isExpired;
   }
 
   // Load index from IndexedDB (validates INDEX_VERSION + corpus hash)
-  private async loadFromStorage(): Promise<LoadedIndex | null> {
+  private async loadFromStorage(options: { allowStale?: boolean } = {}): Promise<LoadedIndex | null> {
     try {
       const db = await this.openDB();
       const transaction = db.transaction([this.STORE_NAME], 'readonly');
@@ -173,7 +181,7 @@ class SearchIndexService {
       if (data.version !== this.INDEX_VERSION) return null;
 
       const storedCorpusHash = data.corpusHash ?? null;
-      if (await this.shouldInvalidate(data.lastUpdated, storedCorpusHash)) return null;
+      if (!options.allowStale && (await this.shouldInvalidate(data.lastUpdated, storedCorpusHash))) return null;
 
       // Reconstruct Maps from stored data
       return {
@@ -582,6 +590,15 @@ class SearchIndexService {
           console.error('Search index revalidation failed; keeping previous in-memory index:', error);
           return previousIndex;
         }
+
+        const staleIndex = await this.loadFromStorage({ allowStale: true });
+        if (staleIndex) {
+          this.index = staleIndex.index;
+          this.indexCorpusHash = staleIndex.corpusHash;
+          console.error('Search index refresh failed; falling back to stale cached index:', error);
+          return this.index;
+        }
+
         throw error;
       }
     })();
