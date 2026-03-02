@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { networkUpgrades } from '../data/upgrades';
 import { getRecentCalls, callTypeNames, type CallType } from '../data/calls';
@@ -8,11 +9,26 @@ import ThemeToggle from './ui/ThemeToggle';
 import UpgradeCarousel from './ui/UpgradeCarousel';
 import { Logo } from './ui/Logo';
 import { Tooltip } from './ui/Tooltip';
+import SiteSearchTrigger from './ui/SiteSearchTrigger';
+import GlobalCallSearch from './GlobalCallSearch';
+import { shouldOpenSearchFromShortcut } from '../utils/searchShortcut';
 
 const HomePage = () => {
   const upgrades = networkUpgrades;
   const recentCalls = getRecentCalls(5);
   const { trackLinkClick } = useAnalytics();
+  const [searchOpen, setSearchOpen] = useState(false);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!shouldOpenSearchFromShortcut(e)) return;
+      e.preventDefault();
+      setSearchOpen(true);
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const handleExternalLinkClick = (linkType: string, url: string) => {
     trackLinkClick(linkType, url);
@@ -112,8 +128,13 @@ const HomePage = () => {
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 p-6">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
-        <div className="mb-12 text-center relative">
-          <div className="absolute top-0 right-0">
+        <div className="mb-12 text-center">
+          <div className="mb-6 flex items-center justify-end gap-2">
+            <SiteSearchTrigger
+              onOpen={() => setSearchOpen(true)}
+              placeholder="Search all calls..."
+              ariaLabel="Search all calls"
+            />
             <ThemeToggle />
           </div>
           <Logo size="2xl" className="mb-4" />
@@ -403,6 +424,10 @@ const HomePage = () => {
           </div>
         </div>
       </div>
+      <GlobalCallSearch
+        isOpen={searchOpen}
+        onClose={() => setSearchOpen(false)}
+      />
     </div>
   );
 };
