@@ -610,10 +610,6 @@ class SearchIndexService {
     }
   }
 
-  // Preload index in the background (fire-and-forget)
-  preload(): void {
-    this.getIndex().catch(err => console.error('Search index preload failed:', err));
-  }
 }
 
 export const searchIndexService = SearchIndexService.getInstance();

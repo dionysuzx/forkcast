@@ -6,7 +6,6 @@ import ThemeToggle from './ui/ThemeToggle';
 import { protocolCalls, callTypeNames, type Call, type CallType } from '../data/calls';
 import { timelineEvents, type TimelineEvent } from '../data/events';
 import { fetchUpcomingCalls, type UpcomingCall } from '../utils/github';
-import { searchIndexService } from '../services/searchIndex';
 import GlobalCallSearch from './GlobalCallSearch';
 
 const CallsIndexPage: React.FC = () => {
@@ -17,11 +16,6 @@ const CallsIndexPage: React.FC = () => {
   const [searchOpen, setSearchOpen] = useState(false);
 
   const calls = protocolCalls;
-
-  // Preload search index in the background
-  useEffect(() => {
-    searchIndexService.preload();
-  }, []);
 
   // Fetch upcoming calls on component mount
   useEffect(() => {
