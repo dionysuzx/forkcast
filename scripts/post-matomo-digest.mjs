@@ -111,13 +111,33 @@ function formatDuration(seconds) {
   return `${mins}m ${secs}s`;
 }
 
-function formatMessage(data, { matomoUrl, siteId }) {
+function buildGraphUrl(env, { apiModule, apiAction, graphType, period, date, extraParams = {} }) {
+  const params = new URLSearchParams({
+    module: "API",
+    method: "ImageGraph.get",
+    idSite: env.siteId,
+    apiModule,
+    apiAction,
+    graphType,
+    period,
+    date,
+    width: "500",
+    height: "200",
+    token_auth: env.matomoToken,
+    ...extraParams,
+  });
+  return `${env.matomoUrl}/index.php?${params}`;
+}
+
+function formatMessage(data, env) {
+  const { matomoUrl, siteId } = env;
   const { visitsSummary, pageUrls, referrers, aiAgents, weekRange } = data;
+  const dateRange = `${weekRange.start},${weekRange.end}`;
 
   const header =
-    `#### :bar_chart: Forkcast Weekly Analytics Digest\n` +
+    `#### Weekly Digest\n` +
     `**${weekRange.start}** to **${weekRange.end}**  ·  ` +
-    `[View in Matomo](${matomoUrl}/index.php?module=CoreHome&action=index&idSite=${siteId}&period=range&date=${weekRange.start},${weekRange.end})`;
+    `[View in Matomo](${matomoUrl}/index.php?module=CoreHome&action=index&idSite=${siteId}&period=range&date=${dateRange})`;
 
   const attachments = [];
 
@@ -141,6 +161,13 @@ function formatMessage(data, { matomoUrl, siteId }) {
           value: formatDuration(visitsSummary.avg_time_on_site),
         },
       ],
+      image_url: buildGraphUrl(env, {
+        apiModule: "VisitsSummary",
+        apiAction: "get",
+        graphType: "evolution",
+        period: "day",
+        date: dateRange,
+      }),
     });
   }
 
@@ -159,6 +186,14 @@ function formatMessage(data, { matomoUrl, siteId }) {
       color: "#4CAF50",
       title: "Top Pages",
       text: table,
+      image_url: buildGraphUrl(env, {
+        apiModule: "Actions",
+        apiAction: "getPageUrls",
+        graphType: "horizontalBar",
+        period: "range",
+        date: dateRange,
+        extraParams: { flat: "1", filter_limit: "10" },
+      }),
     });
   }
 
@@ -173,6 +208,13 @@ function formatMessage(data, { matomoUrl, siteId }) {
       color: "#FF9800",
       title: "Referrer Breakdown",
       fields,
+      image_url: buildGraphUrl(env, {
+        apiModule: "Referrers",
+        apiAction: "getReferrerType",
+        graphType: "pie",
+        period: "range",
+        date: dateRange,
+      }),
     });
   }
 
