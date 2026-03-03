@@ -18,7 +18,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "sync-calls": "node scripts/sync-call-assets.mjs",
-    "extract-decisions": "node --env-file=.env scripts/extract-key-decisions.mjs"
+    "extract-decisions": "node --env-file=.env scripts/extract-key-decisions.mjs",
+    "matomo-digest": "node --env-file=.env scripts/post-matomo-digest.mjs"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.7",
