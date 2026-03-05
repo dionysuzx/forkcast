@@ -1,207 +1,167 @@
 #!/usr/bin/env node
 
 /**
- * Fetches weekly analytics from Matomo and posts a formatted digest
- * to Mattermost via incoming webhook.
+ * Generates a weekly Forkcast analytics report using Claude Agent SDK.
+ * Claude autonomously queries the Matomo API, explores the codebase and
+ * git history, then produces a full formatted report.
+ *
+ * Set DRY_RUN=true to print the report to stdout instead of posting to Mattermost.
  */
 
-const REQUIRED_ENV_VARS = [
-  "MATOMO_URL",
-  "MATOMO_TOKEN",
-  "MATOMO_SITE_ID",
-  "MATTERMOST_WEBHOOK_URL",
-];
+delete process.env.CLAUDECODE;
+
+const DRY_RUN = process.env.DRY_RUN === "true";
+
+const REQUIRED_ENV_VARS = DRY_RUN
+  ? ["MATOMO_URL", "MATOMO_TOKEN", "MATOMO_SITE_ID"]
+  : ["MATOMO_URL", "MATOMO_TOKEN", "MATOMO_SITE_ID", "MATTERMOST_WEBHOOK_URL"];
 
 function validateEnv() {
   const missing = REQUIRED_ENV_VARS.filter((v) => !process.env[v]);
   if (missing.length > 0) {
     throw new Error(`Missing required environment variables: ${missing.join(", ")}`);
   }
-  return {
-    matomoUrl: process.env.MATOMO_URL,
-    matomoToken: process.env.MATOMO_TOKEN,
-    siteId: process.env.MATOMO_SITE_ID,
-    webhookUrl: process.env.MATTERMOST_WEBHOOK_URL,
-  };
 }
 
-function getLastWeekRange() {
+function getDateRange() {
   const now = new Date();
-  // Find last Monday (start of last week)
-  // Treat Sunday (0) as 7 so the arithmetic always lands on the previous week's Monday
-  const dayOfWeek = now.getUTCDay() || 7;
-  const daysToLastMonday = dayOfWeek - 1 + 7;
-  const lastMonday = new Date(now);
-  lastMonday.setUTCDate(now.getUTCDate() - daysToLastMonday);
-  lastMonday.setUTCHours(0, 0, 0, 0);
-
-  const lastSunday = new Date(lastMonday);
-  lastSunday.setUTCDate(lastMonday.getUTCDate() + 6);
-
+  const end = new Date(now);
+  end.setUTCDate(now.getUTCDate() - 1);
+  const start = new Date(end);
+  start.setUTCDate(end.getUTCDate() - 6);
   const fmt = (d) => d.toISOString().split("T")[0];
-  return { start: fmt(lastMonday), end: fmt(lastSunday) };
+  return { start: fmt(start), end: fmt(end) };
 }
 
-async function fetchMatomoData({ matomoUrl, matomoToken, siteId }) {
-  const { start, end } = getLastWeekRange();
-  const period = "range";
-  const date = `${start},${end}`;
+function buildPrompt() {
+  const { start, end } = getDateRange();
+  const matomoUrl = process.env.MATOMO_URL;
+  const matomoToken = process.env.MATOMO_TOKEN;
+  const siteId = process.env.MATOMO_SITE_ID;
 
-  const methods = [
-    { method: "VisitsSummary.get" },
-    { method: "Actions.getPageUrls", params: { flat: 1, filter_limit: 10 } },
-    { method: "Referrers.getReferrerType" },
-    { method: "AIAgents.get" },
-  ];
+  return `You are an analytics analyst for Forkcast (https://forkcast.org), a React SPA that tracks Ethereum network upgrade progress.
 
-  const urls = methods.map(({ method, params = {} }) => {
-    const entries = Object.entries({ module: "API", method, idSite: siteId, period, date, ...params });
-    return entries.map(([k, v]) => `${k}=${v}`).join("&");
-  });
+Produce a comprehensive weekly analytics report for ${start} to ${end}.
 
-  const bulkParams = new URLSearchParams();
-  bulkParams.set("module", "API");
-  bulkParams.set("method", "API.getBulkRequest");
-  bulkParams.set("format", "JSON");
-  bulkParams.set("token_auth", matomoToken);
-  urls.forEach((url, i) => {
-    bulkParams.set(`urls[${i}]`, `?${url}`);
-  });
+## Data sources
 
-  console.log(`Fetching Matomo data for ${start} to ${end}...`);
-  const response = await fetch(`${matomoUrl}/index.php`, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: bulkParams.toString(),
-  });
+### Matomo API
+Use curl via Bash. Connection details:
+- Base URL: ${matomoUrl}/index.php
+- Auth token: ${matomoToken}
+- Site ID: ${siteId}
+- Date range: ${start},${end}
 
-  if (!response.ok) {
-    throw new Error(`Matomo API request failed: ${response.status} ${response.statusText}`);
-  }
+Example: curl -s "${matomoUrl}/index.php?module=API&method=VisitsSummary.get&idSite=${siteId}&period=range&date=${start},${end}&format=JSON&token_auth=${matomoToken}"
 
-  const results = await response.json();
+Also fetch the previous week for comparison (use period=range with the prior 7-day window).
 
-  const [visitsSummary, pageUrls, referrers, aiAgents] = results;
+Useful API methods:
+- VisitsSummary.get — visits, unique visitors, pageviews, bounce rate, avg duration
+- VisitsSummary.getVisits — for weekly breakdown (use period=day)
+- Actions.getPageUrls — top pages (flat=1&filter_limit=30)
+- Referrers.getReferrerType — traffic sources
+- Referrers.getWebsites — referring websites
+- UserCountry.getCountry — visitor countries
+- DevicesDetection.getType — device types
+- VisitTime.getVisitInformationPerServerTime — visits by hour
+- Actions.getEntryPageUrls — landing pages
+- VisitorInterest.getNumberOfVisitsPerVisitDuration — session length distribution
 
-  // Fail fast if any required report returned an API error
-  const required = { VisitsSummary: visitsSummary, Actions: pageUrls, Referrers: referrers };
-  for (const [name, data] of Object.entries(required)) {
-    if (isMatomoError(data)) {
-      throw new Error(`${name} report failed: ${data?.message || "unknown error"}`);
+### Codebase & Git
+Use Read, Glob, Grep, and Bash (git log, git diff) to explore the codebase and recent changes.
+
+## Instructions
+1. Fetch key Matomo metrics AND previous week for comparison
+2. Explore git history for the period
+3. Correlate traffic patterns with code changes
+4. Identify data quality issues, engagement patterns, and growth opportunities
+
+## Output format
+Produce the FULL report as plain text with ASCII tables. Use this exact structure:
+
+\`\`\`
+Forkcast Analytics Report — ${start} to ${end}
+
+Overview
+
+┌────────────────────┬─────────────┐
+│       Metric       │    Value    │
+├────────────────────┼─────────────┤
+│ Visits             │ X,XXX       │
+├────────────────────┼─────────────┤
+│ Pageviews          │ XX,XXX      │
+├────────────────────┼─────────────┤
+│ Pages/visit        │ X.X         │
+├────────────────────┼─────────────┤
+│ Bounce rate        │ XX%         │
+├────────────────────┼─────────────┤
+│ Avg session        │ Xm XXs      │
+├────────────────────┼─────────────┤
+│ Unique visitors    │ X,XXX       │
+└────────────────────┴─────────────┘
+
+Week-over-Week: +X% visits, +X% pageviews (or however the trend looks)
+\`\`\`
+
+Then include numbered **Actionable Insights** — each with supporting data in ASCII tables where relevant. Cover things like:
+- Top pages and engagement patterns
+- Traffic sources breakdown
+- Notable EIPs or upgrade pages drawing attention
+- Code changes correlated with traffic
+- Data quality issues (e.g., tracking duplication)
+- Growth opportunities
+
+End with a **Recommended Actions** section — numbered by impact.
+
+Use ASCII box-drawing characters (┌─┬┐├─┼┤└─┴┘│) for all tables. Use bar charts (█▌) for trends where useful. Keep analysis sharp and actionable — no fluff. Do NOT wrap the output in a code block.`;
+}
+
+async function generateReport() {
+  const { query } = await import("@anthropic-ai/claude-agent-sdk");
+  const prompt = buildPrompt();
+
+  console.log("Generating analytics report...");
+
+  let reportText = "";
+
+  for await (const message of query({
+    prompt,
+    options: {
+      allowedTools: ["Read", "Glob", "Grep", "Bash", "WebFetch"],
+      permissionMode: "bypassPermissions",
+      allowDangerouslySkipPermissions: true,
+      persistSession: false,
+      maxTurns: 20,
+      model: "claude-opus-4-6",
+    },
+  })) {
+    if (message.type === "assistant" && message.message?.content) {
+      for (const block of message.message.content) {
+        if ("text" in block) {
+          reportText = block.text;
+        }
+      }
     }
   }
 
-  // AIAgents is optional — may not exist on all Matomo instances
-  const hasAiAgents = !isMatomoError(aiAgents);
-  console.log(`AIAgents module ${hasAiAgents ? "available" : "not available"}`);
-
-  return {
-    visitsSummary,
-    pageUrls: Array.isArray(pageUrls) ? pageUrls : [],
-    referrers: Array.isArray(referrers) ? referrers : [],
-    aiAgents: hasAiAgents ? aiAgents : null,
-    weekRange: { start, end },
-  };
-}
-
-function isMatomoError(response) {
-  return !response || !!response.result || !!response.message;
-}
-
-function buildVisitsAttachment(items, { color, title }) {
-  const list = Array.isArray(items) ? items : [items];
-  if (list.length === 0 || !list[0].label) return null;
-  return {
-    color,
-    title,
-    fields: list.map((item) => ({
-      short: true,
-      title: item.label || "Unknown",
-      value: `${item.nb_visits ?? 0} visits`,
-    })),
-  };
-}
-
-function formatDuration(seconds) {
-  if (!seconds || seconds === 0) return "0s";
-  const mins = Math.floor(seconds / 60);
-  const secs = Math.round(seconds % 60);
-  if (mins === 0) return `${secs}s`;
-  return `${mins}m ${secs}s`;
-}
-
-function formatMessage(data, { matomoUrl, siteId }) {
-  const { visitsSummary, pageUrls, referrers, aiAgents, weekRange } = data;
-
-  const header =
-    `#### Weekly Digest\n` +
-    `**${weekRange.start}** to **${weekRange.end}**  ·  ` +
-    `[View in Matomo](${matomoUrl}/index.php?module=CoreHome&action=index&idSite=${siteId}&period=range&date=${weekRange.start},${weekRange.end})`;
-
-  const attachments = [];
-
-  // Attachment 1: Visitor Summary
-  if (!isMatomoError(visitsSummary)) {
-    attachments.push({
-      color: "#2196F3",
-      title: "Visitors Summary",
-      fields: [
-        { short: true, title: "Visits", value: `${visitsSummary.nb_visits ?? 0}` },
-        { short: true, title: "Unique Visitors", value: `${visitsSummary.nb_uniq_visitors ?? 0}` },
-        { short: true, title: "Pageviews", value: `${visitsSummary.nb_actions ?? 0}` },
-        {
-          short: true,
-          title: "Bounce Rate",
-          value: visitsSummary.bounce_rate ?? `${visitsSummary.bounce_count ?? 0}`,
-        },
-        {
-          short: true,
-          title: "Avg. Duration",
-          value: formatDuration(visitsSummary.avg_time_on_site),
-        },
-      ],
-    });
+  if (!reportText) {
+    throw new Error("Report generation returned empty.");
   }
 
-  // Attachment 2: Top Pages
-  if (pageUrls.length > 0) {
-    const rows = pageUrls.map(
-      (p) =>
-        `| ${p.label || "/"} | ${p.nb_hits ?? 0} | ${p.nb_visits ?? 0} |`
-    );
-    const table =
-      `| Page | Pageviews | Visits |\n` +
-      `|:-----|----------:|-------:|\n` +
-      rows.join("\n");
+  console.log("Report generated successfully.");
+  return reportText;
+}
 
-    attachments.push({
-      color: "#4CAF50",
-      title: "Top Pages",
-      text: table,
-    });
-  }
-
-  // Attachment 3: Referrer Breakdown
-  const referrerAttachment = buildVisitsAttachment(referrers, { color: "#FF9800", title: "Referrer Breakdown" });
-  if (referrerAttachment) attachments.push(referrerAttachment);
-
-  // Attachment 4: AI Chatbots (if available)
-  if (aiAgents) {
-    const aiAttachment = buildVisitsAttachment(aiAgents, { color: "#9C27B0", title: "AI Chatbots Overview" });
-    if (aiAttachment) attachments.push(aiAttachment);
-  }
-
-  return {
+async function postToMattermost(report) {
+  const payload = {
     username: "Forkcast Analytics",
     icon_emoji: ":bar_chart:",
-    text: header,
-    attachments,
+    text: "```\n" + report + "\n```",
   };
-}
 
-async function postToMattermost(webhookUrl, payload) {
-  console.log("Posting digest to Mattermost...");
-  const response = await fetch(webhookUrl, {
+  console.log("Posting to Mattermost...");
+  const response = await fetch(process.env.MATTERMOST_WEBHOOK_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
@@ -209,17 +169,22 @@ async function postToMattermost(webhookUrl, payload) {
 
   if (!response.ok) {
     const body = await response.text();
-    throw new Error(`Mattermost webhook failed: ${response.status} ${response.statusText} — ${body}`);
+    throw new Error(`Mattermost webhook failed: ${response.status} — ${body}`);
   }
 
-  console.log("Digest posted successfully.");
+  console.log("Posted successfully.");
 }
 
 async function main() {
-  const env = validateEnv();
-  const data = await fetchMatomoData(env);
-  const payload = formatMessage(data, env);
-  await postToMattermost(env.webhookUrl, payload);
+  validateEnv();
+  const report = await generateReport();
+
+  if (DRY_RUN) {
+    console.log("\n" + report);
+    return;
+  }
+
+  await postToMattermost(report);
 }
 
 main().catch((err) => {
