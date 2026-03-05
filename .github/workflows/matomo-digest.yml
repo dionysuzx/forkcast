@@ -19,7 +19,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - run: npm install @anthropic-ai/claude-agent-sdk
+      - run: npm install @anthropic-ai/claude-code @anthropic-ai/claude-agent-sdk
       - name: Generate and post analytics report
         run: node scripts/post-matomo-digest.mjs
         env:
