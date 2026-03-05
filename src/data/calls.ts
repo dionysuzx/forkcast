@@ -7,6 +7,7 @@ export interface Call {
   date: string;
   number: string;
   path: string;
+  pending?: boolean;
 }
 
 // Full names for call types (used in tooltips)

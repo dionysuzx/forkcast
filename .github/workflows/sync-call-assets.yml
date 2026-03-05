@@ -2,9 +2,8 @@
 name: Sync Call Assets from eth/pm
 
 on:
-  schedule:
-    # Run once per hour
-    - cron: '0 * * * *'
+  repository_dispatch:
+    types: [pm-assets-updated]
   workflow_dispatch:
     inputs:
       force_full_sync:
@@ -73,3 +72,29 @@ jobs:
               workflow_id: 'deploy.yml',
               ref: 'main'
             });
+
+      - name: Notify Mattermost
+        if: steps.changes.outputs.has_changes == 'true'
+        env:
+          MATTERMOST_BOT_WEBHOOK_URL: ${{ secrets.MATTERMOST_BOT_WEBHOOK_URL }}
+          SYNCED_PATHS: ${{ steps.sync.outputs.synced_paths }}
+        run: |
+          if [ -z "$MATTERMOST_BOT_WEBHOOK_URL" ]; then
+            echo "No Mattermost webhook configured, skipping notification"
+            exit 0
+          fi
+
+          # Build message from synced paths
+          if [ -n "$SYNCED_PATHS" ]; then
+            COUNT=$(echo "$SYNCED_PATHS" | tr ',' '\n' | wc -l | tr -d ' ')
+            ITEMS=$(echo "$SYNCED_PATHS" | tr ',' '\n' | sed 's/^ *//' | while read -r path; do
+              echo "  - ${path}"
+            done)
+            MESSAGE="Pipeline complete: ${COUNT} call(s) synced\n${ITEMS}"
+          else
+            MESSAGE="Pipeline complete: call assets synced"
+          fi
+
+          curl -s -X POST "$MATTERMOST_BOT_WEBHOOK_URL" \
+            -H 'Content-Type: application/json' \
+            -d "{\"text\": \"${MESSAGE}\"}"

@@ -492,7 +492,8 @@ const CallsIndexPage: React.FC = () => {
                           <Link
                             key={call.path}
                             to={`/calls/${call.path}`}
-                            className={`block bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-3 hover:shadow-md dark:hover:shadow-slate-700/20 transition-all hover:border-slate-300 dark:hover:border-slate-600 group border-l-4 ${callTypeColors[call.type]}`}
+                            className={`block bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-3 hover:shadow-md dark:hover:shadow-slate-700/20 transition-all hover:border-slate-300 dark:hover:border-slate-600 group border-l-4 ${callTypeColors[call.type]} ${call.pending ? 'opacity-75' : ''}`}
+                            style={call.pending ? { borderLeftStyle: 'dashed' } : undefined}
                           >
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-3">
@@ -507,6 +508,12 @@ const CallsIndexPage: React.FC = () => {
                                 <div className="text-sm text-slate-600 dark:text-slate-400">
                                   {call.date}
                                 </div>
+                                {call.pending && (
+                                  <div className="hidden sm:flex items-center gap-1.5 ml-2">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                                    <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">Processing</span>
+                                  </div>
+                                )}
                               </div>
                               <div className="text-slate-400 dark:text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors">
                                 →

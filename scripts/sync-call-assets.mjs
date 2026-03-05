@@ -197,7 +197,6 @@ function generateProtocolCallsJson(callsBySeries) {
       if (!callData.has_tldr && !callData.has_transcript && !callData.has_corrected_transcript) {
         continue;
       }
-      if (!callData.videoUrl) continue;
 
       // Parse callId: "2026-02-05_174" -> date "2026-02-05", number "174"
       const sepIndex = callId.lastIndexOf('_');
@@ -206,11 +205,18 @@ function generateProtocolCallsJson(callsBySeries) {
       const date = callId.substring(0, sepIndex);
       const number = callId.substring(sepIndex + 1).padStart(3, '0');
       const path = `${localType}/${number}`;
+      const pending = !callData.videoUrl;
 
       if (!existingPaths.has(path)) {
-        existing.push({ type: localType, date, number, path });
+        const entry = { type: localType, date, number, path };
+        if (pending) entry.pending = true;
+        existing.push(entry);
         existingPaths.add(path);
         added++;
+      } else if (!pending) {
+        // Call was pending, now has video — remove pending flag
+        const entry = existing.find(e => e.path === path);
+        if (entry?.pending) delete entry.pending;
       }
     }
   }
@@ -239,11 +245,6 @@ async function main() {
     for (const [callId, callData] of Object.entries(calls)) {
       // Skip if no useful assets
       if (!callData.has_tldr && !callData.has_transcript && !callData.has_corrected_transcript) {
-        continue;
-      }
-
-      // Skip calls without a video URL
-      if (!callData.videoUrl) {
         continue;
       }
 

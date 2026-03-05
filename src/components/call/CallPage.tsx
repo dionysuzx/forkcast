@@ -475,11 +475,6 @@ const CallPage: React.FC = () => {
           videoUrl = videoResponse.ok ? (await videoResponse.text()).trim() : undefined;
         }
 
-        // Fallback for testing if no URL found
-        if (!videoUrl) {
-          videoUrl = 'https://www.youtube.com/watch?v=wF0gWBHZdu8';
-        }
-
         setCallData({
           type: type?.toUpperCase() || '',
           date: date || '',
@@ -1064,13 +1059,13 @@ const CallPage: React.FC = () => {
 
       {/* Content */}
       <div className="max-w-7xl mx-auto px-6 py-4">
-        {/* Video Section */}
-        {callData.videoUrl && (
-          <div className="mb-4">
-            <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Video Player */}
-                <div>
+        {/* Video & Metadata Section */}
+        <div className="mb-4">
+          <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Video Player or Processing Indicator */}
+              <div>
+                {callData.videoUrl ? (
                   <div className="relative" style={{ paddingBottom: '56.25%' }}>
                     <YouTube
                       videoId={extractYouTubeId(callData.videoUrl)}
@@ -1089,56 +1084,66 @@ const CallPage: React.FC = () => {
                       }}
                     />
                   </div>
-                </div>
-
-                {/* Video Metadata */}
-                <div className="flex flex-col justify-center">
-                  <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-3">
-                    {getCallTypeLabel()} #{callData.number}
-                  </h2>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex items-center gap-2">
-                      <span className="text-slate-500 dark:text-slate-400">📅</span>
-                      <span className="text-slate-600 dark:text-slate-300">Date:</span>
-                      <span className="text-slate-700 dark:text-slate-200 font-medium">{callData.date}</span>
+                ) : (
+                  <div className="relative rounded-lg bg-slate-100 dark:bg-slate-700/50 flex flex-col items-center justify-center" style={{ paddingBottom: '56.25%' }}>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                      <div className="w-3 h-3 rounded-full bg-amber-500 animate-pulse mb-3" />
+                      <p className="text-sm font-medium text-slate-600 dark:text-slate-300">Video processing</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">The recording is being uploaded</p>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-slate-500 dark:text-slate-400">🎬</span>
-                      <span className="text-slate-600 dark:text-slate-300">Series:</span>
-                      <span className="text-slate-700 dark:text-slate-200 font-medium">{getCallTypeLabel()}</span>
-                    </div>
-                    {callConfig?.issue && (
-                      <div className="flex items-center gap-2">
-                        <span className="text-slate-500 dark:text-slate-400">📌</span>
-                        <span className="text-slate-600 dark:text-slate-300">Agenda:</span>
-                        <a
-                          href={`https://github.com/ethereum/pm/issues/${callConfig.issue}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200 font-medium underline decoration-1 underline-offset-2"
-                        >
-                          #{callConfig.issue}
-                        </a>
-                      </div>
-                    )}
-                    {breakoutEipInfo && (
-                      <div className="flex items-center gap-2">
-                        <span className="text-slate-500 dark:text-slate-400">📋</span>
-                        <span className="text-slate-600 dark:text-slate-300">EIP:</span>
-                        <Link
-                          to={`/eips/${breakoutEipInfo.eip.id}`}
-                          className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200 font-medium underline decoration-1 underline-offset-2"
-                        >
-                          {breakoutEipInfo.eip.id}
-                        </Link>
-                        {breakoutEipInfo.latestFork && (
-                          <span className="text-slate-500 dark:text-slate-400">
-                            ({breakoutEipInfo.latestFork.statusHistory[breakoutEipInfo.latestFork.statusHistory.length - 1]?.status} for {breakoutEipInfo.latestFork.forkName}{breakoutEipInfo.latestFork.isHeadliner ? ', Headliner' : ''})
-                          </span>
-                        )}
-                      </div>
-                    )}
                   </div>
+                )}
+              </div>
+
+              {/* Metadata */}
+              <div className="flex flex-col justify-center">
+                <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-3">
+                  {getCallTypeLabel()} #{callData.number}
+                </h2>
+                <div className="space-y-2 text-sm">
+                  <div className="flex items-center gap-2">
+                    <span className="text-slate-500 dark:text-slate-400">📅</span>
+                    <span className="text-slate-600 dark:text-slate-300">Date:</span>
+                    <span className="text-slate-700 dark:text-slate-200 font-medium">{callData.date}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-slate-500 dark:text-slate-400">🎬</span>
+                    <span className="text-slate-600 dark:text-slate-300">Series:</span>
+                    <span className="text-slate-700 dark:text-slate-200 font-medium">{getCallTypeLabel()}</span>
+                  </div>
+                  {callConfig?.issue && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-slate-500 dark:text-slate-400">📌</span>
+                      <span className="text-slate-600 dark:text-slate-300">Agenda:</span>
+                      <a
+                        href={`https://github.com/ethereum/pm/issues/${callConfig.issue}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200 font-medium underline decoration-1 underline-offset-2"
+                      >
+                        #{callConfig.issue}
+                      </a>
+                    </div>
+                  )}
+                  {breakoutEipInfo && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-slate-500 dark:text-slate-400">📋</span>
+                      <span className="text-slate-600 dark:text-slate-300">EIP:</span>
+                      <Link
+                        to={`/eips/${breakoutEipInfo.eip.id}`}
+                        className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200 font-medium underline decoration-1 underline-offset-2"
+                      >
+                        {breakoutEipInfo.eip.id}
+                      </Link>
+                      {breakoutEipInfo.latestFork && (
+                        <span className="text-slate-500 dark:text-slate-400">
+                          ({breakoutEipInfo.latestFork.statusHistory[breakoutEipInfo.latestFork.statusHistory.length - 1]?.status} for {breakoutEipInfo.latestFork.forkName}{breakoutEipInfo.latestFork.isHeadliner ? ', Headliner' : ''})
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+                {callData.videoUrl && (
                   <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700">
                     <a
                       href={callData.videoUrl}
@@ -1152,52 +1157,52 @@ const CallPage: React.FC = () => {
                       Open in YouTube
                     </a>
                   </div>
-                  {/* Series Navigation */}
-                  {(prevCall || nextCall) && (
-                    <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700 flex justify-between items-center gap-2">
-                      {prevCall ? (
-                        <Link
-                          to={`/calls/${prevCall.path}`}
-                          className="group flex-1 flex flex-col items-start gap-0.5 p-2 -m-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors"
-                        >
-                          <span className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
-                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                            </svg>
-                            Previous
-                          </span>
-                          <span className="text-sm font-medium text-slate-700 dark:text-slate-200 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                            {callTypeNames[prevCall.type]} #{prevCall.number}
-                          </span>
-                        </Link>
-                      ) : (
-                        <span className="flex-1" />
-                      )}
-                      {nextCall ? (
-                        <Link
-                          to={`/calls/${nextCall.path}`}
-                          className="group flex-1 flex flex-col items-end gap-0.5 p-2 -m-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors"
-                        >
-                          <span className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
-                            Next
-                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                            </svg>
-                          </span>
-                          <span className="text-sm font-medium text-slate-700 dark:text-slate-200 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                            {callTypeNames[nextCall.type]} #{nextCall.number}
-                          </span>
-                        </Link>
-                      ) : (
-                        <span className="flex-1" />
-                      )}
-                    </div>
-                  )}
-                </div>
+                )}
+                {/* Series Navigation */}
+                {(prevCall || nextCall) && (
+                  <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700 flex justify-between items-center gap-2">
+                    {prevCall ? (
+                      <Link
+                        to={`/calls/${prevCall.path}`}
+                        className="group flex-1 flex flex-col items-start gap-0.5 p-2 -m-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors"
+                      >
+                        <span className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                          </svg>
+                          Previous
+                        </span>
+                        <span className="text-sm font-medium text-slate-700 dark:text-slate-200 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                          {callTypeNames[prevCall.type]} #{prevCall.number}
+                        </span>
+                      </Link>
+                    ) : (
+                      <span className="flex-1" />
+                    )}
+                    {nextCall ? (
+                      <Link
+                        to={`/calls/${nextCall.path}`}
+                        className="group flex-1 flex flex-col items-end gap-0.5 p-2 -m-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors"
+                      >
+                        <span className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                          Next
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                        </span>
+                        <span className="text-sm font-medium text-slate-700 dark:text-slate-200 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                          {callTypeNames[nextCall.type]} #{nextCall.number}
+                        </span>
+                      </Link>
+                    ) : (
+                      <span className="flex-1" />
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </div>
-        )}
+        </div>
 
         {/* Meeting Summary Section */}
         {callData.tldrData && (

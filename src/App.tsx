@@ -1,5 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
-import { useEffect } from 'react';
+import React, { useEffect, Suspense } from 'react';
 import PublicNetworkUpgradePage from './components/PublicNetworkUpgradePage';
 import HomePage from './components/HomePage';
 import RankPage from './components/RankPage';
@@ -18,6 +18,8 @@ import { getUpgradeById } from './data/upgrades';
 import { useAnalytics } from './hooks/useAnalytics';
 import { ThemeProvider } from './contexts/ThemeContext';
 import ExternalRedirect from './components/ExternalRedirect';
+
+const PipelinePage = React.lazy(() => import('./components/PipelinePage'));
 
 function RedirectHandler() {
   const navigate = useNavigate();
@@ -139,6 +141,7 @@ function App() {
           <Route path="/devnets/:id" element={<DevnetSpecPage />} />
           <Route path="/devnets" element={<DevnetsIndexPage />} />
           <Route path="/decisions" element={<DecisionsPage />} />
+          <Route path="/pipeline" element={<Suspense fallback={<div className="min-h-screen bg-slate-50 dark:bg-slate-900" />}><PipelinePage /></Suspense>} />
           {/* Catch-all route that redirects to home page */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
