@@ -11,15 +11,6 @@ on:
         required: false
         type: boolean
         default: false
-      extract_only:
-        description: 'Skip syncing and only run key-decision extraction'
-        required: false
-        type: boolean
-        default: false
-      extract_only_path:
-        description: 'Optional call path for extract-only runs, e.g. acde/2026-03-12_232'
-        required: false
-        type: string
 
 jobs:
   sync:
@@ -39,23 +30,13 @@ jobs:
 
       - name: Sync assets from eth/pm
         id: sync
-        if: ${{ github.event.inputs.extract_only != 'true' }}
         run: |
           node scripts/sync-call-assets.mjs ${{ github.event.inputs.force_full_sync == 'true' && '--force' || '' }}
 
       - name: Extract key decisions from new TLDRs
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-        run: |
-          if [ "${{ github.event.inputs.extract_only }}" = "true" ]; then
-            if [ -n "${{ github.event.inputs.extract_only_path }}" ]; then
-              node scripts/extract-key-decisions.mjs --only "${{ github.event.inputs.extract_only_path }}" --force
-            else
-              node scripts/extract-key-decisions.mjs --all --force
-            fi
-          else
-            node scripts/extract-key-decisions.mjs --all
-          fi
+        run: node scripts/extract-key-decisions.mjs --all
 
       - name: Check for changes
         id: changes
