@@ -1,0 +1,60 @@
+{
+  "id": 8079,
+  "title": "EIP-8079: Native rollups",
+  "status": "Draft",
+  "description": "Introduces an EXECUTE precompile that exposes Ethereum's state transition function to the execution layer. This allows EVM-equivalent rollups to verify state transitions using Ethereum's own infrastructure rather than maintaining separate proof systems. Also extends the block header with a burned_fees field and adds an anchoring mechanism for L1-to-L2 messaging.",
+  "author": "Luca Donno (@lucadonnoh), Justin Drake (@JustinDrake)",
+  "type": "Standards Track",
+  "category": "Core",
+  "createdDate": "2025-11-13",
+  "discussionLink": "https://ethereum-magicians.org/t/eip-8079-native-rollups/26565",
+  "reviewer": "bot",
+  "layer": "EL",
+  "forkRelationships": [],
+  "laymanDescription": "Lets rollups (layer 2 networks) use Ethereum's own transaction processing engine directly instead of building their own. This dramatically simplifies rollup infrastructure, reduces bugs, and helps rollups stay in sync with Ethereum upgrades automatically, making them safer and easier to maintain.",
+  "stakeholderImpacts": {
+    "endUsers": {
+      "description": "No direct user-facing changes. Rollup users may benefit long-term from improved rollup security and faster adoption of Ethereum upgrades."
+    },
+    "appDevs": {
+      "description": "No changes required for application developers. Rollups using native execution remain EVM-equivalent, so existing contracts deploy without modification."
+    },
+    "walletDevs": {
+      "description": "Minimal impact. Wallets interacting with native rollups continue working as before; no protocol-level changes affect wallet functionality."
+    },
+    "toolingInfra": {
+      "description": "Block explorers and indexers must account for the new burned_fees header field. Rollup infrastructure tooling may need updates to support the EXECUTE precompile."
+    },
+    "layer2s": {
+      "description": "Major impact. EVM-equivalent rollups can replace custom proof systems with the EXECUTE precompile, simplifying infrastructure and enabling automatic Ethereum upgrade compatibility."
+    },
+    "stakersNodes": {
+      "description": "L1 validators see no meaningful change. Rollup node operators benefit from simplified verification infrastructure and reduced maintenance burden."
+    },
+    "clClients": {
+      "description": "No direct consensus layer changes. The proposal operates entirely within the execution layer via a new precompile and header extension."
+    },
+    "elClients": {
+      "description": "Must implement the EXECUTE precompile, the burned_fees header extension, proof-carrying transaction type, and the anchoring system transaction logic."
+    }
+  },
+  "benefits": [
+    "Eliminates need for rollups to build and maintain custom EVM proof systems.",
+    "Rollups automatically inherit Ethereum upgrades, removing governance divergence risk.",
+    "Reduces rollup bug surface area by reusing battle-tested L1 state transition logic.",
+    "Enables rollups to progress toward Stage 2 security by removing security council dependencies."
+  ],
+  "tradeoffs": [
+    "Rollups using custom opcodes, precompiles, or transaction types cannot adopt this directly.",
+    "L1-to-L2 messages lose sender-derived msg.sender, requiring adapted access control patterns.",
+    "Specification is incomplete; several critical sections (ZK proofs, parameters) remain TBD."
+  ],
+  "northStarAlignment": {
+    "scaleBlobs": {
+      "description": "Strengthens the rollup-centric roadmap by making L1 a native verification layer for rollups, increasing their security and reducing infrastructure overhead."
+    },
+    "improveUX": {
+      "description": "Rollups that adopt native execution stay in sync with Ethereum upgrades automatically, reducing fragmentation and improving the cross-layer user experience."
+    }
+  }
+}

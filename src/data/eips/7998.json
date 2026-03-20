@@ -1,0 +1,53 @@
+{
+  "id": 7998,
+  "title": "EIP-7998: Turn randao_reveal into a VRF",
+  "status": "Draft",
+  "description": "Modifies the data signed by block proposers for randao_reveal by incorporating the previous epoch's RANDAO mix and the current slot number. This transforms randao_reveal into a BLS-based Verifiable Random Function (VRF), making it unpredictable across epochs even for the revealer. Strengthens Ethereum's native randomness and enables protocols like Single Secret Leader Election (SSLE).",
+  "author": "Alberto La Rocca (@71104), Aryaethn (@aryaethn)",
+  "type": "Standards Track",
+  "category": "Core",
+  "createdDate": "2025-08-03",
+  "discussionLink": "https://ethereum-magicians.org/t/eip-7998-turn-randao-reveal-into-a-vrf/24999",
+  "reviewer": "bot",
+  "layer": "CL",
+  "forkRelationships": [],
+  "laymanDescription": "Changes how block proposers generate randomness so that no one can predict future random values, even the proposer themselves. This lays the groundwork for secret leader election, which would hide who proposes the next block, reducing opportunities for front-running and manipulation.",
+  "stakeholderImpacts": {
+    "endUsers": {
+      "description": "No direct user-facing changes. Long-term benefits include reduced MEV extraction if this enables secret proposer election."
+    },
+    "appDevs": {
+      "description": "No impact on application developers. On-chain randomness consumers may eventually benefit from stronger native randomness properties."
+    },
+    "walletDevs": {
+      "description": "No wallet changes required. The modification is internal to consensus-layer block production."
+    },
+    "toolingInfra": {
+      "description": "Block explorers and monitoring tools parsing randao_reveal must account for the new signing structure after the fork epoch."
+    },
+    "layer2s": {
+      "description": "No direct impact on L2 protocols. L2s deriving randomness from L1 RANDAO gain a stronger entropy source."
+    },
+    "stakersNodes": {
+      "description": "Validators benefit from reduced RANDAO bias attacks and future secret proposer election, improving fairness and MEV resistance."
+    },
+    "clClients": {
+      "description": "Must implement the new RandaoRevealSeed container and update process_randao verification logic, with fork-epoch branching for backward compatibility."
+    },
+    "elClients": {
+      "description": "No direct changes needed. Only standard fork-activation configuration and compatibility testing with updated consensus clients."
+    }
+  },
+  "benefits": [
+    "Transforms randao_reveal into a VRF, eliminating cross-epoch predictability for proposers.",
+    "Enables Single Secret Leader Election (SSLE) by providing verifiable per-slot randomness.",
+    "Eliminates the RANDAO bias attack vector, improving consensus fairness.",
+    "Produces unique per-slot reveals, preventing duplicate outputs for multi-slot proposers."
+  ],
+  "tradeoffs": null,
+  "northStarAlignment": {
+    "improveUX": {
+      "description": "Enables secret proposer election, which reduces MEV extraction and improves transaction fairness for end users."
+    }
+  }
+}

@@ -1,0 +1,54 @@
+{
+  "id": 7961,
+  "title": "EIP-7961: EVM64 - EOF code section",
+  "status": "Draft",
+  "description": "Defines a \"pure\" EVM64 mode as a separate EOF code section type. All opcodes in EVM64 mode operate only on the least significant 64 bits in little endian. This is an alternative to EIP-7937's prefix-opcode approach, trading system call interoperability for shorter code size by eliminating multibyte opcodes. Requires EIP-3540, EIP-4750, and EIP-7960.",
+  "author": "Wei Tang (@sorpaas)",
+  "type": "Standards Track",
+  "category": "Core",
+  "createdDate": "2025-05-28",
+  "discussionLink": "https://ethereum-magicians.org/t/eip-series-evm64/23794",
+  "reviewer": "bot",
+  "layer": "EL",
+  "forkRelationships": [],
+  "laymanDescription": "Adds a new 64-bit execution mode inside EOF smart contracts. Instead of using the standard 256-bit math the EVM normally uses, contracts can opt into a faster 64-bit mode for code sections that do not need large numbers, potentially improving execution speed and reducing code size.",
+  "stakeholderImpacts": {
+    "endUsers": {
+      "description": "No direct impact. If adopted, contracts using EVM64 sections could execute more efficiently, but user-facing behavior is unchanged."
+    },
+    "appDevs": {
+      "description": "Developers targeting EOF contracts gain an optional 64-bit execution mode with reduced code size, but lose access to system call opcodes within those sections."
+    },
+    "walletDevs": {
+      "description": "No impact. Wallet transaction construction and signing are unaffected by internal EVM execution mode changes."
+    },
+    "toolingInfra": {
+      "description": "Compilers, debuggers, and disassemblers must recognize the new EOF code section type and support 64-bit opcode semantics with little-endian encoding."
+    },
+    "layer2s": {
+      "description": "Layer 2 fraud proofs and EVM-equivalent execution environments would need to support the new EVM64 code section type if deployed."
+    },
+    "elClients": {
+      "description": "Execution clients must implement a new EOF code section type, 64-bit opcode variants, adjusted gas schedules, and EOF validation changes."
+    },
+    "clClients": {
+      "description": "No direct impact. EVM64 is purely an execution-layer change with no consensus-layer protocol modifications."
+    }
+  },
+  "benefits": [
+    "Produces shorter contract bytecode by eliminating the need for multibyte prefix opcodes.",
+    "Enables EVM interpreters to optimize execution using native 64-bit arithmetic internally.",
+    "Reduces gas costs for arithmetic and memory operations within 64-bit code sections.",
+    "Cleanly separates 64-bit execution via EOF typing rather than inline mode switching."
+  ],
+  "tradeoffs": [
+    "Only works with EOF contracts; legacy EVM contracts cannot use EVM64 mode.",
+    "System calls for block data, balances, and storage are unavailable inside EVM64 sections.",
+    "Adds interpreter complexity with a second execution mode and associated validation rules."
+  ],
+  "northStarAlignment": {
+    "scaleL1": {
+      "description": "Native 64-bit execution mode enables more efficient EVM interpretation and lower gas costs for computation-heavy contracts."
+    }
+  }
+}

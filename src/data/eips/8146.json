@@ -1,0 +1,56 @@
+{
+  "id": 8146,
+  "title": "EIP-8146: Block Access List Sidecars",
+  "status": "Draft",
+  "description": "Removes the block access list (BAL) from the ExecutionPayloadEnvelope and propagates it as an independent sidecar on a dedicated gossip topic. Builders commit to the BAL root in their ExecutionPayloadBid. Sidecar verification uses this commitment without requiring a separate signature. The Payload Timeliness Committee (PTC) enforces BAL availability at the attestation deadline.",
+  "author": "Toni Wahrstätter (@nerolation), Raúl Kripalani (@raulk)",
+  "type": "Standards Track",
+  "category": "Core",
+  "createdDate": "2026-02-03",
+  "discussionLink": "https://ethereum-magicians.org/t/eip-8146-block-access-list-sidecars/27757",
+  "reviewer": "bot",
+  "layer": "CL",
+  "forkRelationships": [],
+  "laymanDescription": "Moves a large piece of data (the block access list) out of the main execution payload message and sends it separately over the network. This reduces the size of the critical payload message, helping it spread faster across the network and allowing nodes to start prefetching data sooner.",
+  "stakeholderImpacts": {
+    "endUsers": {
+      "description": "No direct impact. Block propagation improvements are invisible to end users but contribute to overall network health and reliability."
+    },
+    "appDevs": {
+      "description": "No changes to application-layer APIs or smart contract behavior. The block access list separation is purely an infrastructure concern."
+    },
+    "walletDevs": {
+      "description": "No wallet-facing changes. Transaction submission and confirmation flows are unaffected by the internal restructuring of payload propagation."
+    },
+    "toolingInfra": {
+      "description": "Block explorers and monitoring tools tracking payload propagation must account for the new sidecar gossip topic and separate BAL delivery."
+    },
+    "layer2s": {
+      "description": "No direct impact. Layer 2 protocols do not interact with BAL propagation mechanics, though improved block propagation latency benefits all network participants."
+    },
+    "stakersNodes": {
+      "description": "PTC members must track BAL sidecar availability and vote on it independently. Builders must broadcast BAL sidecars on a new gossip topic."
+    },
+    "clClients": {
+      "description": "Significant implementation work: new gossip topic, sidecar container, modified fork choice store, PTC voting changes, new req/resp endpoints, and Engine API method."
+    },
+    "elClients": {
+      "description": "Must implement the new engine_notifyBlockAccessListV1 method to receive BALs independently of execution payloads and begin state prefetching."
+    }
+  },
+  "benefits": [
+    "Reduces execution payload envelope size, improving propagation latency on the critical path.",
+    "Enables early state prefetching by delivering the BAL before the execution payload arrives.",
+    "Requires no separate BLS signature, leveraging existing bid commitments for sidecar verification.",
+    "Follows established sidecar patterns (like blob sidecars), maintaining architectural consistency."
+  ],
+  "tradeoffs": [
+    "Introduces additional gossip topic and req/resp endpoints, increasing P2P protocol surface area.",
+    "Adds a new PTC voting dimension, slightly increasing attestation complexity for committee members."
+  ],
+  "northStarAlignment": {
+    "scaleL1": {
+      "description": "Reduces critical-path payload size and enables early state prefetching, directly improving L1 block processing throughput under ePBS."
+    }
+  }
+}

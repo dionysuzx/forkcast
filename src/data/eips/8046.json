@@ -1,0 +1,60 @@
+{
+  "id": 8046,
+  "title": "EIP-8046: Uniform price auction over inclusion lists",
+  "status": "Draft",
+  "description": "Proposes a uniform price auction over inclusion lists (UPIL) that ranks transactions by their offered ranking fee per gas. When blocks are full, inclusion-list transactions offering higher ranking fees cannot be displaced. All included transactions pay a uniform marginal ranking fee, which is burned. Builds on FOCIL (EIP-7805) to achieve strong censorship resistance, especially under multidimensional fee markets where block-stuffing is otherwise cheap.",
+  "author": "Anders Elowsson (@anderselowsson)",
+  "type": "Standards Track",
+  "category": "Core",
+  "createdDate": "2025-10-16",
+  "discussionLink": "https://ethereum-magicians.org/t/eip-8046-uniform-price-auction-over-inclusion-lists/25844",
+  "reviewer": "bot",
+  "layer": "EL",
+  "forkRelationships": [],
+  "laymanDescription": "Adds a fair auction system so that when blocks are full, transactions willing to pay more for inclusion cannot be unfairly blocked by block builders. Everyone in the same block pays the same extra fee, which is burned. This makes censorship much more expensive and guarantees timely inclusion for users.",
+  "stakeholderImpacts": {
+    "endUsers": {
+      "description": "Transactions offering sufficient ranking fees gain guaranteed next-block inclusion, improving reliability for time-sensitive operations and reducing censorship risk."
+    },
+    "appDevs": {
+      "description": "Applications sending time-sensitive transactions can leverage ranking fees to guarantee inclusion; existing contracts require no changes."
+    },
+    "walletDevs": {
+      "description": "Wallets must support the new RANK_TX_TYPE transaction format and help users set appropriate max_ranking_fee_per_gas values."
+    },
+    "toolingInfra": {
+      "description": "Fee estimation tools must account for marginal ranking fees; block explorers need to display the new inclusion fee component and burned ranking fees."
+    },
+    "layer2s": {
+      "description": "L2 sequencers and bridges submitting time-sensitive proofs or messages to L1 benefit from guaranteed inclusion via ranking fees."
+    },
+    "stakersNodes": {
+      "description": "Includers gain a stronger role in transaction inclusion and may earn fees for listing transactions; attesters must verify marginal ranking fee correctness."
+    },
+    "elClients": {
+      "description": "Must implement the new RANK_TX_TYPE, marginal ranking fee processing, altered priority fee calculation, and the ranking-aware FOCIL post-execution inclusion check."
+    },
+    "clClients": {
+      "description": "Must validate marginal ranking fee correctness during attestation, provide includer payout addresses to the EL, and enforce updated fork-choice inclusion rules."
+    }
+  },
+  "benefits": [
+    "Makes transaction censorship orders of magnitude more expensive for block builders, even under multidimensional fee markets.",
+    "Guarantees next-block inclusion for transactions offering sufficient ranking fees, improving reliability for time-sensitive use cases.",
+    "Burns the marginal ranking fee, aligning incentives and preventing artificial congestion engineering.",
+    "Strengthens the public mempool by reducing builder incentives to accumulate private transaction orderflow."
+  ],
+  "tradeoffs": [
+    "Existing transaction formats may spend their full max_fee_per_gas on the marginal ranking fee in high-contention blocks.",
+    "Introduces a new transaction type and fee field, adding complexity to wallets, tooling, and fee estimation.",
+    "Builders lose control over transaction inclusion in full blocks, potentially reducing their ability to extract MEV."
+  ],
+  "northStarAlignment": {
+    "scaleL1": {
+      "description": "Preserves censorship resistance under multidimensional fee markets, enabling Ethereum to scale L1 resources without degrading transaction inclusion guarantees."
+    },
+    "improveUX": {
+      "description": "Provides guaranteed next-block inclusion for time-sensitive transactions and ensures all users in the same block pay the same fair marginal fee."
+    }
+  }
+}

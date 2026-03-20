@@ -1,0 +1,57 @@
+{
+  "id": 7701,
+  "title": "EIP-7701: Native Account Abstraction",
+  "status": "Stagnant",
+  "description": "Introduces native account abstraction by adding a new transaction type that splits processing into validation, execution, and post-operation steps. Separates authorization from gas payment, allowing paymasters to sponsor gas for other accounts. Adds new opcodes (CURRENT_ROLE, ACCEPT_ROLE, TXPARAM*) for contracts to participate in structured transaction lifecycle roles.",
+  "author": "Vitalik Buterin (@vbuterin), Yoav Weiss (@yoavw), Alex Forshtat (@forshtat), Dror Tirosh (@drortirosh), Shahaf Nacson (@shahafn)",
+  "type": "Standards Track",
+  "category": "Core",
+  "createdDate": "2024-05-01",
+  "discussionLink": "https://ethereum-magicians.org/t/eip-7701-native-account-abstraction/19893",
+  "reviewer": "bot",
+  "layer": "EL",
+  "forkRelationships": [],
+  "laymanDescription": "Lets Ethereum smart contract wallets define their own rules for approving transactions and paying gas fees. A separate account (called a paymaster) can cover gas costs on behalf of users, removing the need to hold ETH just to transact. This enables more flexible wallet designs and simpler onboarding.",
+  "stakeholderImpacts": {
+    "endUsers": {
+      "description": "Enables smart contract wallets with custom authentication and sponsored transactions, removing the requirement to hold ETH for gas fees."
+    },
+    "appDevs": {
+      "description": "Unlocks paymaster-sponsored transactions and flexible account logic, enabling gasless onboarding flows and new wallet interaction patterns."
+    },
+    "walletDevs": {
+      "description": "Must integrate the new AA transaction type and role-based validation flow; gains ability to build wallets with custom signing and recovery schemes."
+    },
+    "toolingInfra": {
+      "description": "Block explorers, indexers, and debuggers must support the new transaction type, opcodes, and multi-step execution trace format."
+    },
+    "layer2s": {
+      "description": "Layer 2s already using ERC-4337 may align with native AA semantics; rollups processing EVM transactions must support the new transaction type."
+    },
+    "stakersNodes": {
+      "description": "Validators must process the new transaction type with its multi-phase execution; mempool handling requires updated validation logic."
+    },
+    "clClients": {
+      "description": "Minimal direct impact; consensus clients need fork-activation configuration but no new beacon chain logic."
+    },
+    "elClients": {
+      "description": "Significant implementation effort: new transaction type, five new opcodes, multi-phase execution pipeline, and updated mempool validation rules."
+    }
+  },
+  "benefits": [
+    "Enables native smart contract wallets with custom authentication and key management.",
+    "Allows paymasters to sponsor gas fees, removing ETH balance requirements for users.",
+    "Separates validation from execution, improving transaction processing flexibility.",
+    "Provides a protocol-level foundation replacing off-chain account abstraction workarounds."
+  ],
+  "tradeoffs": [
+    "Adds EVM complexity with five new opcodes and a multi-phase transaction pipeline.",
+    "Security-critical ACCEPT_ROLE opcode requires careful auditing of all deployed contracts.",
+    "Mempool validation becomes more complex, requiring execution of custom validation code."
+  ],
+  "northStarAlignment": {
+    "improveUX": {
+      "description": "Directly improves user experience by enabling smart contract wallets with custom authentication, social recovery, and gasless transactions via paymasters."
+    }
+  }
+}

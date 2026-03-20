@@ -1,0 +1,52 @@
+{
+  "id": 7848,
+  "title": "EIP-7848: On-chain upgrade signaling",
+  "status": "Draft",
+  "description": "Adds a mechanism for clients to signal willingness for a network upgrade by including a reference implementation hash in each block header. A network upgrade activates only if a sufficient number of blocks within a defined voting window specify they are running the new software, replacing off-chain upgrade coordination with on-chain consent.",
+  "author": "William Entriken (@fulldecent)",
+  "type": "Standards Track",
+  "category": "Core",
+  "createdDate": "2024-12-22",
+  "discussionLink": "https://ethereum-magicians.org/t/eip-7848-on-chain-upgrade-signaling/22306",
+  "reviewer": "bot",
+  "layer": "EL",
+  "forkRelationships": [],
+  "laymanDescription": "Lets validators vote on-chain for network upgrades by including a special code in blocks they produce. An upgrade only goes live if enough blocks signal support within a set time window, giving the community direct say over whether changes are adopted.",
+  "stakeholderImpacts": {
+    "endUsers": {
+      "description": "No direct impact on end users; changes the internal process by which network upgrades are coordinated and activated."
+    },
+    "appDevs": {
+      "description": "No impact on application developers; the proposal affects upgrade governance mechanics, not smart contract interfaces or execution semantics."
+    },
+    "walletDevs": {
+      "description": "No direct impact; wallets do not interact with block header signaling fields or upgrade activation logic."
+    },
+    "toolingInfra": {
+      "description": "Block explorers and monitoring tools would need to parse and display the new referenceImplementationHash field and track voting window progress."
+    },
+    "layer2s": {
+      "description": "No direct impact on layer 2 protocols; the proposal changes how L1 upgrades are activated but does not alter rollup or bridge mechanics."
+    },
+    "stakersNodes": {
+      "description": "Validators gain an explicit on-chain mechanism to signal upgrade readiness, requiring them to evaluate reference implementations before opting in."
+    },
+    "clClients": {
+      "description": "Consensus clients must implement voting window logic, track approval counts across blocks, and conditionally activate new behaviors based on vote outcomes."
+    },
+    "elClients": {
+      "description": "Execution clients must add a referenceImplementationHash field to the block header after extraData and validate it during block processing."
+    }
+  },
+  "benefits": [
+    "Enables transparent, on-chain coordination for network upgrades via block-level signaling.",
+    "Ensures upgrades activate only with demonstrated supermajority support from block producers.",
+    "Provides real-time, verifiable feedback on upgrade readiness during the voting window.",
+    "Replaces off-chain announcement-driven upgrades with consent-based on-chain governance."
+  ],
+  "tradeoffs": [
+    "Adds a new required field to block headers, increasing header size and validation complexity.",
+    "Overlapping or competing upgrade proposals could fragment validator support and cause confusion.",
+    "Long voting windows may delay subsequent upgrade proposals from being considered."
+  ]
+}

@@ -1,0 +1,57 @@
+{
+  "id": 7864,
+  "title": "EIP-7864: Ethereum state using a unified binary tree",
+  "status": "Draft",
+  "description": "Replaces Ethereum's hexary Merkle-Patricia Trie with a unified binary state tree using 32-byte keys. Account and storage tries merge into one tree that also includes chunked contract code. Account data is grouped into 256-leaf stems for locality. The hash function is not yet finalized; candidates include BLAKE3, Keccak, and Poseidon2. The binary structure produces smaller Merkle proofs and is friendlier to validity-proof systems.",
+  "author": "Vitalik Buterin (@vbuterin), Guillaume Ballet (@gballet), Dankrad Feist (@dankrad), Ignacio Hagopian (@jsign), Kevaundray Wedderburn (@kevaundray), Tanishq Jasoria (@tanishqjasoria), Gajinder Singh (@g11tech), Danno Ferrin (@shemnon), Piper Merriam (@pipermerriam), Gottfried Herold (@GottfriedHerold)",
+  "type": "Standards Track",
+  "category": "Core",
+  "createdDate": "2025-01-20",
+  "discussionLink": "https://ethereum-magicians.org/t/eip-7864-ethereum-state-using-a-unified-binary-tree/22611",
+  "reviewer": "bot",
+  "layer": "EL",
+  "forkRelationships": [],
+  "laymanDescription": "Swaps Ethereum's internal data structure for tracking all accounts and balances from a wide 16-branch tree to a simpler 2-branch tree. This makes it much easier to create compact mathematical proofs that the data is correct, moving Ethereum closer to instant block verification while remaining secure against future quantum computers.",
+  "stakeholderImpacts": {
+    "endUsers": {
+      "description": "No direct user-facing changes. Long-term enables faster block verification and supports stateless Ethereum, potentially improving light client access."
+    },
+    "appDevs": {
+      "description": "Gas cost changes for code-chunk and storage access may affect contract economics. In-EVM proofs of historical state will break."
+    },
+    "walletDevs": {
+      "description": "Minimal direct impact. Wallets do not interact with the state tree structure; underlying RPC responses remain unchanged."
+    },
+    "toolingInfra": {
+      "description": "Block explorers, indexers, and debugging tools must update state proof parsing from MPT to binary tree format."
+    },
+    "layer2s": {
+      "description": "L2s generating L1 state proofs must adopt the new binary tree proof format. Proving-friendly hashes may benefit rollup proof systems."
+    },
+    "stakersNodes": {
+      "description": "Node operators face a state migration process. Stateless validation becomes feasible, lowering long-term hardware requirements."
+    },
+    "elClients": {
+      "description": "Major implementation effort: new binary tree data structure, merkelization logic, code chunkification, key-mapping scheme, and state migration support."
+    },
+    "clClients": {
+      "description": "Minimal direct impact. CL clients may need to handle updated execution payload verification once the EL tree root format changes."
+    }
+  },
+  "benefits": [
+    "Produces smaller Merkle proofs than the current hexary trie, reducing witness sizes.",
+    "Enables validity-proof-based block verification, a key step toward stateless Ethereum.",
+    "Uses only hash functions, providing post-quantum security without elliptic curves.",
+    "Co-locates related account data in stems, reducing branch openings and gas costs."
+  ],
+  "tradeoffs": [
+    "Requires a full state tree migration, creating significant one-time implementation and coordination cost.",
+    "Hash function choice is unresolved; each candidate trades off proving speed, security maturity, and complexity.",
+    "Breaks backward compatibility for in-EVM historical state proofs."
+  ],
+  "northStarAlignment": {
+    "scaleL1": {
+      "description": "Smaller witnesses and proving-friendly hashes directly support stateless validation, enabling higher throughput without increasing node requirements."
+    }
+  }
+}

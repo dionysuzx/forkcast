@@ -1,0 +1,56 @@
+{
+  "id": 8115,
+  "title": "EIP-8115: Batch priority fees at end of block",
+  "status": "Draft",
+  "description": "Delays all EIP-1559 priority fee credits from individual transactions to the end of the block. Instead of crediting the fee recipient after each transaction, priority fees are summed and credited once after all transactions are processed but before withdrawals. This removes per-transaction writes to the fee recipient balance, enabling better transaction parallelization, simpler accounting, and more accurate ETH transfer logs.",
+  "author": "Etan Kissling (@etan-status), Gajinder Singh (@g11tech)",
+  "type": "Standards Track",
+  "category": "Core",
+  "createdDate": "2025-12-30",
+  "discussionLink": "https://ethereum-magicians.org/t/eip-8115-batch-priority-fees-at-end-of-block/27358",
+  "reviewer": "bot",
+  "layer": "EL",
+  "forkRelationships": [],
+  "laymanDescription": "Currently, block producers receive a small tip from every transaction one at a time. This proposal batches all those tips into a single payment at the end of the block, making it easier to process transactions in parallel and simplifying bookkeeping for block builders.",
+  "stakeholderImpacts": {
+    "endUsers": {
+      "description": "No direct user-facing changes; potential long-term throughput gains from improved transaction parallelization may reduce congestion."
+    },
+    "appDevs": {
+      "description": "Contracts relying on the fee recipient's mid-block balance from priority fees may need to account for deferred crediting."
+    },
+    "walletDevs": {
+      "description": "Minimal impact. No changes to transaction construction or signing; fee estimation logic remains the same."
+    },
+    "toolingInfra": {
+      "description": "Block explorers and analytics tools must update ETH balance tracking to reflect batched fee crediting rather than per-transaction credits."
+    },
+    "layer2s": {
+      "description": "No direct impact on L2 protocols; L2 sequencers that also build L1 blocks may benefit from parallelization improvements."
+    },
+    "stakersNodes": {
+      "description": "Validators receive the same total priority fees but in a single end-of-block credit; no change to total revenue."
+    },
+    "elClients": {
+      "description": "Must restructure block processing to accumulate priority fees and apply a single credit after all transactions, moderate implementation change."
+    },
+    "clClients": {
+      "description": "No consensus-layer logic changes; only fork-activation configuration updates and compatibility testing with updated EL clients."
+    }
+  },
+  "benefits": [
+    "Enables parallel transaction execution by removing per-transaction writes to fee recipient balance.",
+    "Simplifies fee recipient accounting from hundreds of micropayments to a single credit.",
+    "Enables fully accurate ETH transfer logs without expensive per-fee log entries.",
+    "Removes mempool edge cases where senders rely on incremental priority fee credits for solvency."
+  ],
+  "tradeoffs": [
+    "Fee recipients cannot spend priority fees within the same block they are earned.",
+    "Block builder infrastructure and MEV strategies may need updates for deferred fee crediting."
+  ],
+  "northStarAlignment": {
+    "scaleL1": {
+      "description": "Removes a serialization bottleneck in block processing, directly enabling parallel transaction execution on L1."
+    }
+  }
+}

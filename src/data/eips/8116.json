@@ -1,0 +1,55 @@
+{
+  "id": 8116,
+  "title": "EIP-8116: Replace cumulative receipt fields",
+  "status": "Draft",
+  "description": "Replaces the cumulative `cumulativeGasUsed` field in on-chain receipts with a per-transaction `gasUsed` value. Also changes the JSON-RPC `logIndex` from a block-level index to a per-receipt index. These changes remove stateful dependencies between receipts, enabling more efficient verification and greater parallelism in receipt processing.",
+  "author": "Etan Kissling (@etan-status), Gajinder Singh (@g11tech)",
+  "type": "Standards Track",
+  "category": "Core",
+  "createdDate": "2025-12-30",
+  "discussionLink": "https://ethereum-magicians.org/t/eip-8116-replace-cumulative-receipt-fields/27359",
+  "reviewer": "bot",
+  "layer": "EL",
+  "forkRelationships": [],
+  "laymanDescription": "Changes transaction receipts so each one only records its own gas usage instead of a running total for the whole block. Also makes log numbering per-transaction instead of per-block. This simplifies verification and allows more work to happen in parallel.",
+  "stakeholderImpacts": {
+    "endUsers": {
+      "description": "No direct impact. Receipt data changes are transparent to end users interacting with wallets and applications."
+    },
+    "appDevs": {
+      "description": "Applications parsing `cumulativeGasUsed` or block-level `logIndex` from receipts must update to use per-transaction equivalents."
+    },
+    "walletDevs": {
+      "description": "Wallets displaying gas usage from receipts may need minor adjustments if they consume raw receipt fields directly."
+    },
+    "toolingInfra": {
+      "description": "Block explorers, indexers, and analytics tools must update receipt parsing to handle per-transaction `gasUsed` and `logIndex` semantics."
+    },
+    "layer2s": {
+      "description": "Rollups deriving data from L1 receipts must adapt to the new per-transaction fields when verifying or re-executing transactions."
+    },
+    "stakersNodes": {
+      "description": "No direct impact beyond running updated client software that produces the new receipt format."
+    },
+    "elClients": {
+      "description": "Moderate implementation work: receipt construction must switch from cumulative to per-transaction fields, and JSON-RPC log indexing logic must change."
+    },
+    "clClients": {
+      "description": "Minimal impact. Consensus clients do not directly construct or interpret execution receipt fields beyond fork-activation plumbing."
+    }
+  },
+  "benefits": [
+    "Enables parallel receipt processing by removing inter-receipt state dependencies.",
+    "Simplifies RPC client verification of individual transaction gas usage.",
+    "Aligns on-chain receipt data with how applications actually consume it.",
+    "Reduces computational overhead for indexers processing receipts independently."
+  ],
+  "tradeoffs": [
+    "Breaks backwards compatibility for applications relying on cumulative gas or block-level log indexing."
+  ],
+  "northStarAlignment": {
+    "scaleL1": {
+      "description": "Removing stateful receipt fields enables greater parallelism in block processing, supporting L1 throughput scaling."
+    }
+  }
+}

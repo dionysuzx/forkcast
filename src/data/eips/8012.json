@@ -1,0 +1,48 @@
+{
+  "id": 8012,
+  "title": "EIP-8012: Generalized consolidation requests",
+  "status": "Draft",
+  "description": "Redefines the target_pubkey field in consolidation requests as a general 48-byte array interpretable by the consensus layer. This allows the existing consolidation request contract to transmit general messages from the execution layer to the consensus layer without any EL changes, avoiding cross-layer coordination for CL hard forks.",
+  "author": "Potuz (@potuz)",
+  "type": "Standards Track",
+  "category": "Core",
+  "createdDate": "2025-08-22",
+  "discussionLink": "https://ethereum-magicians.org/t/eip-8012-generalized-consolidation-requests/25264",
+  "reviewer": "bot",
+  "layer": "CL",
+  "forkRelationships": [],
+  "laymanDescription": "Repurposes an existing communication channel between Ethereum's two layers so that new consensus features can be added without changing the execution layer. The consolidation request contract gains a general-purpose messaging capability, reducing coordination needed for future upgrades.",
+  "stakeholderImpacts": {
+    "endUsers": {
+      "description": "No direct impact. This is infrastructure plumbing that enables future CL features without requiring EL changes visible to end users."
+    },
+    "appDevs": {
+      "description": "No impact. The consolidation request contract interface and calldata format remain unchanged; new functionality is CL-only."
+    },
+    "walletDevs": {
+      "description": "No impact. Wallet interfaces for staking and consolidation remain the same; message reinterpretation happens entirely on the CL."
+    },
+    "toolingInfra": {
+      "description": "Tools decoding consolidation requests may need to handle the new generalized message format when the target_pubkey does not match a known validator."
+    },
+    "layer2s": {
+      "description": "No direct impact. The change is confined to the EL-to-CL messaging path and does not alter L2 settlement or data availability."
+    },
+    "stakersNodes": {
+      "description": "Validators and stakers gain future extensibility via the consolidation contract, potentially enabling new roles like becoming a builder without EL changes."
+    },
+    "clClients": {
+      "description": "Must update consolidation request processing to detect the magic prefix, parse the generalized message format, and dispatch to appropriate handlers per CALL_TYPE."
+    },
+    "elClients": {
+      "description": "No changes required. The existing consolidation request contract, calldata, and Engine API remain identical."
+    }
+  },
+  "benefits": [
+    "Enables new CL features without requiring execution layer hard forks.",
+    "Reuses existing consolidation contract infrastructure, avoiding new system contracts.",
+    "Fully backwards compatible with current consolidation request behavior.",
+    "Reduces cross-layer coordination overhead for future consensus upgrades."
+  ],
+  "tradeoffs": null
+}

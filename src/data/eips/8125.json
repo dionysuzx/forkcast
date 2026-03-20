@@ -1,0 +1,57 @@
+{
+  "id": 8125,
+  "title": "EIP-8125: Temporary Contract Storage",
+  "status": "Draft",
+  "description": "Introduces temporary storage for contracts via TMPLOAD and TMPSTORE opcodes. Data persists across transactions and blocks but is automatically cleared on a protocol-defined schedule using a two-period rollover between two reserved system accounts. Provides bounded-lifetime semantics without explicit deletes, targeting use cases where data is valuable only for a limited time window.",
+  "author": "Wei Han Ng (@weiihann)",
+  "type": "Standards Track",
+  "category": "Core",
+  "createdDate": "2026-01-14",
+  "discussionLink": "https://ethereum-magicians.org/t/eip8125-temporary-contract-storage/27440",
+  "reviewer": "bot",
+  "layer": "EL",
+  "forkRelationships": [],
+  "laymanDescription": "Adds a new type of contract storage that automatically expires after a set number of blocks. Over 60% of storage slots are written once and never read again, wasting space permanently. This lets contracts store short-lived data cheaply, knowing the protocol will clean it up automatically.",
+  "stakeholderImpacts": {
+    "endUsers": {
+      "description": "Indirect benefit: contracts using temporary storage may offer lower gas costs for operations involving short-lived data."
+    },
+    "appDevs": {
+      "description": "New TMPLOAD/TMPSTORE opcodes enable storing ephemeral data cheaply; developers must handle automatic expiry and cannot assume indefinite retention."
+    },
+    "walletDevs": {
+      "description": "No direct wallet changes required; wallets may surface temporary storage reads in transaction previews if contracts adopt the new opcodes."
+    },
+    "toolingInfra": {
+      "description": "Block explorers, debuggers, and indexers must support the new opcodes and account for data expiry when displaying temporary storage state."
+    },
+    "layer2s": {
+      "description": "No direct integration needed. L2s deriving from the EVM may choose to adopt temporary storage for their own state management benefits."
+    },
+    "stakersNodes": {
+      "description": "Node operators benefit from bounded state growth; temporary storage is automatically pruned, reducing long-term disk and I/O requirements."
+    },
+    "elClients": {
+      "description": "Must implement two new opcodes, two reserved system accounts, periodic storage root clearing at period boundaries, and new gas metering logic."
+    },
+    "clClients": {
+      "description": "No consensus-layer logic changes; only standard hard fork activation coordination with execution clients is required."
+    }
+  },
+  "benefits": [
+    "Reduces long-term state growth by automatically clearing storage that contracts no longer need.",
+    "Provides cheaper gas costs for ephemeral data compared to permanent SSTORE/SLOAD.",
+    "Guarantees a minimum retention period, giving developers a predictable expiry model.",
+    "Requires no explicit cleanup by contracts, eliminating a class of state-management bugs."
+  ],
+  "tradeoffs": [
+    "Adds two new opcodes and system accounts, increasing EVM complexity for client implementers.",
+    "Contracts must handle the case where temporary data has expired unexpectedly.",
+    "Many gas cost parameters remain TBD, making economic impact difficult to assess currently."
+  ],
+  "northStarAlignment": {
+    "scaleL1": {
+      "description": "Directly reduces long-term state bloat by giving contracts a built-in mechanism for bounded-lifetime storage, lowering node resource requirements."
+    }
+  }
+}

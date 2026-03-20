@@ -1,0 +1,56 @@
+{
+  "id": 7916,
+  "title": "EIP-7916: SSZ ProgressiveList",
+  "status": "Review",
+  "description": "Introduces new SSZ types, ProgressiveList and ProgressiveBitlist, that use a progressive Merkle tree shape. These types reduce hashing overhead for short lists by growing the tree incrementally, eliminate arbitrary capacity limits, and maintain stable generalized indices across fork changes for forward-compatible Merkle proofs.",
+  "author": "Zsolt Felföldi (@zsfelfoldi), Cayman (@wemeetagain), Etan Kissling (@etan-status)",
+  "type": "Standards Track",
+  "category": "Core",
+  "createdDate": "2025-03-24",
+  "discussionLink": "https://ethereum-magicians.org/t/eip-7916-ssz-progressivebytelist/23254",
+  "reviewer": "bot",
+  "layer": "CL",
+  "forkRelationships": [],
+  "laymanDescription": "Current list formats in Ethereum's data encoding require a fixed maximum size, wasting computation on padding and breaking compatibility when limits change. This proposal replaces them with lists that grow naturally as items are added, reducing unnecessary work for small lists and avoiding hard caps that complicate future upgrades.",
+  "stakeholderImpacts": {
+    "endUsers": {
+      "description": "No direct impact. This is an internal serialization change; end users interact through the same interfaces with no visible difference."
+    },
+    "appDevs": {
+      "description": "No impact for smart contract or application developers. SSZ encoding changes are transparent to application-layer logic."
+    },
+    "walletDevs": {
+      "description": "No direct impact. Wallet interactions with SSZ-encoded data are abstracted by client libraries."
+    },
+    "toolingInfra": {
+      "description": "SSZ libraries, block explorers, and proof tooling must add support for the new progressive Merkle tree shape and updated generalized index paths."
+    },
+    "layer2s": {
+      "description": "Layer 2 systems relying on SSZ Merkle proofs for beacon state verification must update proof logic to handle the new progressive tree structure."
+    },
+    "stakersNodes": {
+      "description": "No direct operational change. Node operators benefit from reduced hashing overhead once clients adopt the new types."
+    },
+    "clClients": {
+      "description": "Consensus clients must implement the progressive Merkle tree algorithm, new composite types, and updated merkleization logic in their SSZ libraries."
+    },
+    "elClients": {
+      "description": "Minimal direct impact. Execution clients may need SSZ library updates if they consume or produce data using the new progressive types."
+    }
+  },
+  "benefits": [
+    "Reduces hashing overhead for short lists by growing the Merkle tree only as needed.",
+    "Eliminates arbitrary capacity limits that complicate protocol upgrades and constrain future design.",
+    "Provides stable generalized indices so Merkle proofs remain valid across fork changes.",
+    "Backward compatible: new types coexist with existing SSZ types without conflict."
+  ],
+  "tradeoffs": [
+    "Proof sizes for very large list indices grow due to recursive subtree traversal.",
+    "All SSZ libraries and tooling must be updated to support the new tree shape."
+  ],
+  "northStarAlignment": {
+    "scaleL1": {
+      "description": "Reduces computational overhead of SSZ merkleization for typical payloads, improving block processing efficiency."
+    }
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "id": 8016,
+  "title": "EIP-8016: SSZ CompatibleUnion",
+  "status": "Draft",
+  "description": "Introduces a new SSZ composite type, CompatibleUnion, for representing tagged unions with forward-compatible Merkleization. Each field is assigned the same stable generalized index (gindex) across all type options, so Merkle proof verifiers can check common fields without tracking version-specific gindex maps. Serialization uses a one-byte selector prefix, and compatibility rules ensure all union variants share a consistent tree shape.",
+  "author": "Etan Kissling (@etan-status), Cayman (@wemeetagain)",
+  "type": "Standards Track",
+  "category": "Core",
+  "createdDate": "2025-08-28",
+  "discussionLink": "https://ethereum-magicians.org/t/eip-8016-ssz-compatibleunion/25275",
+  "reviewer": "bot",
+  "layer": "CL",
+  "forkRelationships": [],
+  "laymanDescription": "When Ethereum has multiple versions of the same data structure (like different transaction types), verifiers currently need to know which version they are checking. CompatibleUnion is a new data format that keeps proof paths identical across all versions, so verifiers work without version-specific knowledge and do not break when new versions are added.",
+  "stakeholderImpacts": {
+    "endUsers": {
+      "description": "No direct impact. End users benefit indirectly through more robust light clients and bridges that handle multi-variant data without version-specific breakage."
+    },
+    "appDevs": {
+      "description": "Smart contracts verifying Merkle proofs across multiple data variants (e.g., transaction types) gain stable gindices, reducing proof logic complexity."
+    },
+    "walletDevs": {
+      "description": "Minimal direct impact. Wallets relying on light client proofs benefit from consistent proof paths across data variants without wallet-side updates."
+    },
+    "toolingInfra": {
+      "description": "SSZ libraries and proof tooling must implement CompatibleUnion with selector-based serialization, compatibility validation, and the mix_in_selector Merkleization extension."
+    },
+    "layer2s": {
+      "description": "Bridges and L2s verifying Merkle proofs across multiple data variants benefit from stable gindices, avoiding verifier updates when new variants are introduced."
+    },
+    "stakersNodes": {
+      "description": "No operational changes for stakers. Validators benefit from a cleaner upgrade path when new data variants are introduced across forks."
+    },
+    "clClients": {
+      "description": "Consensus clients must implement the CompatibleUnion SSZ type, including selector-based serialization, compatibility checks, and mix_in_selector Merkleization."
+    },
+    "elClients": {
+      "description": "Minimal direct impact. Execution clients may need SSZ library updates if they consume or produce data encoded with CompatibleUnion."
+    }
+  },
+  "benefits": [
+    "Guarantees stable generalized indices across union variants, preventing Merkle proof breakage.",
+    "Simplifies verifiers by removing the need for version-specific gindex maps.",
+    "Enables adding or removing union variants without breaking existing proof consumers.",
+    "Compact serialization with a single-byte selector prefix and no padding overhead."
+  ],
+  "tradeoffs": [
+    "All union variants must share compatible Merkleization, constraining schema design.",
+    "SSZ libraries and tooling must implement the new type and compatibility validation logic."
+  ],
+  "northStarAlignment": {
+    "improveUX": {
+      "description": "Stable Merkle proofs across data variants reduce maintenance for light client and bridge developers, simplifying cross-version verification."
+    }
+  }
+}

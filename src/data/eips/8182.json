@@ -1,0 +1,57 @@
+{
+  "id": 8182,
+  "title": "EIP-8182: Private ETH and ERC-20 Transfers",
+  "status": "Draft",
+  "description": "Introduces protocol-level private ETH and ERC-20 transfers via a system contract and proof-verification precompile. A recursive proof architecture separates hard-fork-managed protocol invariants from permissionless inner authentication circuits, letting users choose auth methods (ECDSA, passkeys, multisig) without hard forks. Includes an optional delivery-key registry for on-chain note-delivery key discovery. The system contract has no upgrade mechanism and can only be replaced by hard fork.",
+  "author": "Tom Lehman (@RogerPodacter)",
+  "type": "Standards Track",
+  "category": "Core",
+  "createdDate": "2026-03-03",
+  "discussionLink": "https://ethereum-magicians.org/t/eip-8182-private-eth-and-erc-20-transfers/27889",
+  "reviewer": "bot",
+  "layer": "EL",
+  "forkRelationships": [],
+  "laymanDescription": "Adds a shared privacy layer to Ethereum so users can send ETH and tokens without publicly revealing sender, recipient, or amount. Instead of each app building its own privacy pool, the protocol provides one common pool managed through Ethereum's upgrade process, giving stronger privacy through wider adoption.",
+  "stakeholderImpacts": {
+    "endUsers": {
+      "description": "Users gain native private transfers for ETH and ERC-20 tokens, enabling payroll, donations, and treasury management without public visibility of transaction details."
+    },
+    "appDevs": {
+      "description": "Developers can build privacy features on a shared pool rather than bootstrapping their own, using wrapper contracts for compliance or fee logic."
+    },
+    "walletDevs": {
+      "description": "Wallets must integrate shielded note management, proof generation, delivery-key registration, and new deposit/withdraw/transfer flows for the system contract."
+    },
+    "toolingInfra": {
+      "description": "Block explorers and indexers must handle the new system contract events, nullifier tracking, and commitment tree state while respecting privacy boundaries."
+    },
+    "layer2s": {
+      "description": "No direct L2 protocol changes required. L2s may eventually want equivalent privacy infrastructure or bridged access to the L1 shielded pool."
+    },
+    "stakersNodes": {
+      "description": "Validators process transactions interacting with the system contract and precompile; no changes to staking mechanics or consensus rules beyond fork activation."
+    },
+    "clClients": {
+      "description": "Minimal direct impact. Consensus clients need fork-activation plumbing but no new consensus logic beyond recognizing the new system contract deployment."
+    },
+    "elClients": {
+      "description": "Significant implementation work: new system contract deployment, proof-verification precompile, Poseidon hash support, and state management for commitment and nullifier trees."
+    }
+  },
+  "benefits": [
+    "Provides a shared privacy pool, offering stronger anonymity than fragmented app-level solutions.",
+    "Supports flexible authentication methods without requiring hard forks for each new method.",
+    "Hard-fork-only upgrade model eliminates admin-key risks present in upgradeable contracts.",
+    "Enables private transfers to ordinary Ethereum addresses without requiring recipients to opt in."
+  ],
+  "tradeoffs": [
+    "Adds substantial EL complexity: new precompile, system contract, and Poseidon hash infrastructure.",
+    "End-to-end privacy requires complementary off-chain infrastructure like mempool encryption and network anonymity.",
+    "Zero-knowledge proof generation imposes computational overhead on users or third-party proving services."
+  ],
+  "northStarAlignment": {
+    "improveUX": {
+      "description": "Provides a protocol-native privacy option for everyday financial activities like payroll and donations, removing the need for users to evaluate competing third-party privacy pools."
+    }
+  }
+}

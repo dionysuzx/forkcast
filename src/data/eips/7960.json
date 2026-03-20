@@ -1,0 +1,50 @@
+{
+  "id": 7960,
+  "title": "EIP-7960: EOF - Extended types section",
+  "status": "Draft",
+  "description": "Extends the EOF container's types section with an additional type parameter per code section. This lets the EVM interpreter identify and dispatch different code section types, enabling EOF function calls to invoke alternative interpreters such as EVM64 or RISC-V. The EOF version is bumped to 0x02 for backward compatibility with chains that may have already deployed EOF v1.",
+  "author": "Wei Tang (@sorpaas)",
+  "type": "Standards Track",
+  "category": "Core",
+  "createdDate": "2025-05-28",
+  "discussionLink": "https://ethereum-magicians.org/t/eip-series-evm64/23794",
+  "reviewer": "bot",
+  "layer": "EL",
+  "forkRelationships": [],
+  "laymanDescription": "Adds a label to each code section inside an EOF smart contract so the EVM knows which interpreter to use for that section. This enables contracts to mix normal EVM code with faster alternatives like EVM64 for heavy computation, all within a single contract.",
+  "stakeholderImpacts": {
+    "endUsers": {
+      "description": "No direct impact. Contracts using multiple interpreter types may eventually offer lower gas costs for computation-heavy operations."
+    },
+    "appDevs": {
+      "description": "Developers targeting EOF can tag code sections by type, enabling future use of alternative interpreters like EVM64 within a single contract."
+    },
+    "walletDevs": {
+      "description": "No impact. The change is internal to EOF container format and does not affect transaction construction or wallet interfaces."
+    },
+    "toolingInfra": {
+      "description": "Compilers, debuggers, and bytecode analysis tools must parse the updated types section format and handle the new type field and version bump."
+    },
+    "elClients": {
+      "description": "Moderate complexity. Clients must update EOF validation to handle the extended types section, enforce the new type field, and support the version 0x02 container format."
+    },
+    "clClients": {
+      "description": "No direct impact. This is purely an execution-layer change to the EOF container format."
+    }
+  },
+  "benefits": [
+    "Enables contracts to dispatch code sections to different interpreters within a single EOF container.",
+    "Opens a path for future high-performance interpreters like EVM64 or RISC-V in EOF.",
+    "Bumps EOF version to avoid conflicts with third-party chains that already deployed EOF v1.",
+    "Maintains backward compatibility by making the previous EOF version invalid on mainnet."
+  ],
+  "tradeoffs": [
+    "Increases EOF validation complexity and expands the types section format.",
+    "Bumping the EOF version invalidates any existing v1 deployments on mainnet-compatible chains."
+  ],
+  "northStarAlignment": {
+    "scaleL1": {
+      "description": "Enables future use of faster alternative interpreters per code section, potentially improving EVM execution throughput."
+    }
+  }
+}

@@ -1,0 +1,57 @@
+{
+  "id": 8130,
+  "title": "EIP-8130: Account Abstraction by Account Configuration",
+  "status": "Draft",
+  "description": "Introduces a new EIP-2718 transaction type and an onchain Account Configuration system that together provide account abstraction: custom authentication, call batching, and gas sponsorship. Accounts register owners with onchain verifier contracts. Transactions declare which verifier to use, enabling nodes to filter transactions without executing wallet code. No EVM changes are required.",
+  "author": "Chris Hunter (@chunter-cb) <chris.hunter@coinbase.com>",
+  "type": "Standards Track",
+  "category": "Core",
+  "createdDate": "2025-10-14",
+  "discussionLink": "https://ethereum-magicians.org/t/eip-8130-account-abstraction-by-account-configurations/25952",
+  "reviewer": "bot",
+  "layer": "EL",
+  "forkRelationships": [],
+  "laymanDescription": "Lets Ethereum accounts use alternative login methods (like passkeys or multisig) and have others pay their gas fees, all without changing the core virtual machine. Existing accounts work immediately, and new signature schemes can be added by deploying contracts rather than upgrading the protocol.",
+  "stakeholderImpacts": {
+    "endUsers": {
+      "description": "Enables flexible authentication (passkeys, WebAuthn, multisig), gas sponsorship, and call batching, significantly improving onboarding and daily transaction experience."
+    },
+    "appDevs": {
+      "description": "Applications can sponsor user gas fees and batch multiple calls atomically, simplifying user flows and removing the need for wrapper contracts."
+    },
+    "walletDevs": {
+      "description": "Wallets must integrate the new transaction type, verifier selection, owner management, and gas sponsorship flows. Existing ERC-4337 wallets have a migration path."
+    },
+    "toolingInfra": {
+      "description": "Block explorers, indexers, and RPC providers must parse the new transaction type, 2D nonces, call phases, and extended receipt fields."
+    },
+    "layer2s": {
+      "description": "L2s can adopt the same Account Configuration Contract and verifier infrastructure for cross-chain account portability with deterministic addresses."
+    },
+    "stakersNodes": {
+      "description": "Node operators must configure verifier allowlists and gas caps for mempool acceptance, adding operational complexity for transaction filtering."
+    },
+    "elClients": {
+      "description": "Significant implementation: new transaction type processing, Account Configuration and Nonce Manager precompiles, 2D nonce management, call phase execution, and intrinsic gas changes."
+    },
+    "clClients": {
+      "description": "No direct consensus logic changes; standard fork-activation plumbing and compatibility testing with updated execution clients."
+    }
+  },
+  "benefits": [
+    "Enables custom authentication (passkeys, P256, WebAuthn, multisig) without protocol upgrades.",
+    "Provides native gas sponsorship and atomic call batching at the protocol level.",
+    "Requires no EVM changes; new signature schemes deploy as permissionless verifier contracts.",
+    "Backward compatible: existing EOAs and smart contracts function unchanged."
+  ],
+  "tradeoffs": [
+    "Adds substantial complexity to execution client transaction processing and mempool validation.",
+    "Nodes must maintain verifier allowlists, introducing operational overhead and potential centralization pressure.",
+    "Introduces multiple new precompiles and system contracts that expand the protocol surface area."
+  ],
+  "northStarAlignment": {
+    "improveUX": {
+      "description": "Delivers native account abstraction with flexible authentication, gas sponsorship, and call batching, removing key barriers to mainstream Ethereum adoption."
+    }
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "id": 7862,
+  "title": "EIP-7862: Delayed State Root",
+  "status": "Draft",
+  "description": "Decouples state root computation from block validation by deferring the execution layer's state root reference by one block. Each block header contains the post-state root of the previous block rather than its own, allowing validators to attest to block validity without waiting for state root computation. Reduces builder timing pressure and enables parallelized proof generation via block-level access lists.",
+  "author": "Charlie Noyes <charlie@paradigm.xyz>, Dan Robinson <dan@paradigm.xyz>, Justin Drake <justin@ethereum.org>, Toni Wahrstätter (@nerolation)",
+  "type": "Standards Track",
+  "category": "Core",
+  "createdDate": "2024-12-23",
+  "discussionLink": "https://ethereum-magicians.org/t/eip-7862-delayed-execution-layer-state-root/22559",
+  "reviewer": "bot",
+  "layer": "EL",
+  "forkRelationships": [],
+  "laymanDescription": "Currently, every block must include a summary of the entire network state, which takes time to compute. This proposal lets each block carry the previous block's state summary instead. This frees up time during block creation, making the network faster and allowing blocks to be confirmed sooner.",
+  "stakeholderImpacts": {
+    "endUsers": {
+      "description": "No direct user-facing changes. Attestations may land faster, marginally improving confirmation latency under high load."
+    },
+    "appDevs": {
+      "description": "No contract-level changes. Developers relying on state proofs must account for the one-block delay in state root availability."
+    },
+    "walletDevs": {
+      "description": "Minimal impact. Wallets verifying state proofs need to reference the next block's header for the latest state root."
+    },
+    "toolingInfra": {
+      "description": "Block explorers and indexers must update state root interpretation logic to reflect the one-block delay in header semantics."
+    },
+    "layer2s": {
+      "description": "Rollups using EL state proofs for bridging must adjust to read state roots from the subsequent block header."
+    },
+    "stakersNodes": {
+      "description": "Validators benefit from reduced attestation latency since state root computation no longer blocks block validation."
+    },
+    "clClients": {
+      "description": "CL state root verification is unaffected. Clients need awareness of the changed EL header semantics but no consensus logic changes."
+    },
+    "elClients": {
+      "description": "Significant refactor: header validation, state transition, and reorg handling must all account for the delayed state root model."
+    }
+  },
+  "benefits": [
+    "Removes state root computation from the critical block validation path.",
+    "Enables parallel state root generation using block-level access lists from the prior block.",
+    "Reduces builder timing pressure under ePBS by frontloading root computation.",
+    "Allows validators to attest sooner, improving overall network responsiveness."
+  ],
+  "tradeoffs": [
+    "Light clients experience one additional slot of latency for state proofs.",
+    "Requires a hard fork; non-upgraded clients will reject new blocks."
+  ],
+  "northStarAlignment": {
+    "scaleL1": {
+      "description": "Removes a major bottleneck from block production, enabling faster validation and potentially higher throughput."
+    }
+  }
+}

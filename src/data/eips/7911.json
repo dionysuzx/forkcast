@@ -1,0 +1,53 @@
+{
+  "id": 7911,
+  "title": "EIP-7911: Scaling Ethereum with a Perceptron Tree ZKP",
+  "status": "Draft",
+  "description": "Proposes a Perceptron Tree-based zero-knowledge proof model to enhance Ethereum scalability and privacy. The hybrid model combines decision trees and perceptron neural networks to compress multiple transaction relationships into a single proof, reducing gas fees and on-chain verification load compared to existing zk-SNARK and zk-STARK methods.",
+  "author": "Ryo Ha (@sopia19910) <sopia19910@gmail.com>, Khajiev Nizomjon (@khajievN) <nizom7812@gmail.com>",
+  "type": "Standards Track",
+  "category": "Core",
+  "createdDate": "2025-03-19",
+  "discussionLink": "https://ethereum-magicians.org/t/improving-blockchain-scalability-using-a-perceptron-tree-based-zero-knowledge-proof-model/23196",
+  "reviewer": "bot",
+  "layer": "EL",
+  "forkRelationships": [],
+  "laymanDescription": "Uses a machine-learning-inspired tree structure to group related transactions and prove them all at once with a single zero-knowledge proof. This reduces gas costs and verification work on-chain while keeping transaction details private. No protocol upgrade is required; it works at the smart contract level.",
+  "stakeholderImpacts": {
+    "endUsers": {
+      "description": "Users interacting with contracts that adopt this model could see lower gas fees for batched transaction verification."
+    },
+    "appDevs": {
+      "description": "Developers building ZKP-based applications could integrate the Perceptron Tree verifier contracts for more efficient multi-transaction proofs."
+    },
+    "walletDevs": {
+      "description": "No direct wallet changes required; operates at the smart contract layer with standard transaction interfaces."
+    },
+    "toolingInfra": {
+      "description": "ZKP tooling and analytics platforms may need to support the new Perceptron Tree proof format for debugging and monitoring."
+    },
+    "layer2s": {
+      "description": "Rollups and L2s using ZKP verification could adopt the model to compress proof submissions and reduce L1 settlement costs."
+    },
+    "clClients": {
+      "description": "No consensus client changes needed; the proposal operates entirely at the smart contract level without protocol modifications."
+    },
+    "elClients": {
+      "description": "No execution client changes needed; verification occurs within smart contracts using existing EVM capabilities."
+    }
+  },
+  "benefits": [
+    "Compresses multiple transaction proofs into one, reducing gas costs for batch verification.",
+    "Preserves transaction privacy while proving validity and inter-transaction relationships.",
+    "Requires no Ethereum protocol changes; deployable as smart contracts on the existing network.",
+    "Addresses limitations of zk-SNARK and zk-STARK by leveraging inter-transaction similarity."
+  ],
+  "tradeoffs": [
+    "Introduces complexity from the Perceptron Tree training and commitment computation steps.",
+    "Proof generation depends on off-chain tree construction, adding an external trust assumption."
+  ],
+  "northStarAlignment": {
+    "scaleL1": {
+      "description": "Reduces on-chain verification load by consolidating multiple transaction proofs into a single compact proof."
+    }
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "id": 7799,
+  "title": "EIP-7799: System logs",
+  "status": "Draft",
+  "description": "Extends eth_getLogs to provide per-block system logs for events not associated with any transaction, such as block rewards (priority fees), withdrawals, and genesis allocations. Introduces a system logs list committed via a new system-logs-root in the execution block header, and updates the JSON-RPC and Engine APIs accordingly.",
+  "author": "Etan Kissling (@etan-status), Gajinder Singh (@g11tech)",
+  "type": "Standards Track",
+  "category": "Core",
+  "createdDate": "2024-10-29",
+  "discussionLink": "https://ethereum-magicians.org/t/eip-7799-system-logs/21497",
+  "reviewer": "bot",
+  "layer": "EL",
+  "forkRelationships": [],
+  "laymanDescription": "Adds automatic log entries for ETH balance changes that happen outside of normal transactions, like block rewards and validator withdrawals. This lets wallets see a complete history of all ETH movements using existing log-querying tools, without needing to download every block header.",
+  "stakeholderImpacts": {
+    "endUsers": {
+      "description": "Wallets can display a complete ETH balance history including block rewards and withdrawals, improving transparency without requiring user action."
+    },
+    "appDevs": {
+      "description": "Applications querying eth_getLogs gain access to system-level events; developers tracking ETH flows no longer need to separately process withdrawals and block rewards."
+    },
+    "walletDevs": {
+      "description": "Wallet developers can rely on eth_getLogs alone for complete ETH balance tracking, removing the need to fetch block headers and withdrawal lists."
+    },
+    "toolingInfra": {
+      "description": "Indexers, explorers, and analytics tools must handle new system log entries and the systemLogsRoot field in block headers and Engine API payloads."
+    },
+    "layer2s": {
+      "description": "No direct impact. Layer 2 bridges or rollups that parse L1 block headers may need to account for the new system-logs-root field."
+    },
+    "stakersNodes": {
+      "description": "Validators and node operators benefit from provable priority fee rewards via system logs, simplifying reward accounting."
+    },
+    "clClients": {
+      "description": "Consensus clients must extend the ExecutionPayload with a system_logs_root field and validate it during fork-choice processing."
+    },
+    "elClients": {
+      "description": "Execution clients must emit system logs for fees, withdrawals, and genesis; compute the system-logs-root; extend the block header and JSON-RPC API."
+    }
+  },
+  "benefits": [
+    "Enables complete ETH balance tracking via eth_getLogs without downloading every block header.",
+    "Makes priority fee block rewards efficiently provable from the system logs root.",
+    "Unifies withdrawal and reward event discovery with the existing log-based querying model.",
+    "Reduces complexity for wallets and indexers that currently need multiple data sources for balance history."
+  ],
+  "tradeoffs": [
+    "Adds a new field to the execution block header, breaking applications that assume a fixed header layout.",
+    "Withdrawal data is duplicated across the withdrawals list and system logs until a future consolidation."
+  ],
+  "northStarAlignment": {
+    "improveUX": {
+      "description": "Wallets gain a single, unified interface (eth_getLogs) for tracking all ETH balance changes, eliminating the need for complex multi-source balance reconstruction."
+    }
+  }
+}

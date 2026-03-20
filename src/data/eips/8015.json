@@ -1,0 +1,47 @@
+{
+  "id": 8015,
+  "title": "EIP-8015: Remove deposit and eth1data fields",
+  "status": "Draft",
+  "description": "Removes the legacy deposits and eth1_data fields from BeaconBlockBody after EIP-6110 has been fully finalized. These fields become obsolete once all validators have transitioned to the new in-protocol deposit processing mechanism introduced by EIP-6110, eliminating deprecated validation logic and reducing technical debt from the transition period.",
+  "author": "Terence (@terencechain)",
+  "type": "Standards Track",
+  "category": "Core",
+  "createdDate": "2025-08-22",
+  "discussionLink": "https://ethereum-magicians.org/t/eip-8015-remove-legacy-deposit-and-eth1data-fields/25401",
+  "reviewer": "bot",
+  "layer": "CL",
+  "forkRelationships": [],
+  "laymanDescription": "Cleans up the consensus layer by removing two data fields that were only needed during the transition to a newer deposit system. Since all deposits now go through the updated mechanism, these leftover fields serve no purpose and removing them simplifies the protocol.",
+  "stakeholderImpacts": {
+    "endUsers": {
+      "description": "No user-facing impact. Deposit processing already uses the new mechanism; this change is purely internal cleanup."
+    },
+    "appDevs": {
+      "description": "No impact on application developers. The removed fields were internal to consensus layer block processing."
+    },
+    "walletDevs": {
+      "description": "No impact. Wallet interactions with staking deposits are unchanged; only internal beacon block structure is modified."
+    },
+    "toolingInfra": {
+      "description": "Tools parsing BeaconBlockBody must update to the new structure without deposits and eth1_data fields."
+    },
+    "layer2s": {
+      "description": "No direct impact. Layer 2 protocols do not interact with consensus layer deposit fields."
+    },
+    "stakersNodes": {
+      "description": "No operational change for stakers. Deposit processing continues via EIP-6110; node operators need updated client software."
+    },
+    "clClients": {
+      "description": "Must remove deposit and eth1_data processing from BeaconBlockBody, drop related validation logic, and update SSZ containers. Moderate refactoring effort."
+    },
+    "elClients": {
+      "description": "Minimal impact. No consensus logic changes required; mainly fork-activation configuration and compatibility testing with updated CL clients."
+    }
+  },
+  "benefits": [
+    "Eliminates deprecated validation logic and code paths from block processing.",
+    "Reduces technical debt accumulated during the EIP-6110 transition period.",
+    "Simplifies the BeaconBlockBody structure for improved maintainability."
+  ],
+  "tradeoffs": null
+}

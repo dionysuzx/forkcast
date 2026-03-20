@@ -1,0 +1,50 @@
+{
+  "id": 8163,
+  "title": "EIP-8163: Reserve EXTENSION (0xae) opcode",
+  "status": "Draft",
+  "description": "Reserves opcode 0xae as EXTENSION, guaranteed to never become a valid instruction on Ethereum L1 EVM. On L1 it behaves identically to INVALID (0xfe), causing an exceptional halt. Non-L1 EVM chains may use it as a prefix to encode custom extension instructions, enabling experimentation without risking opcode collisions with mainnet.",
+  "author": "Bruce Collie (@Baltoli), Piotr Dobaczewski (@pdobacz)",
+  "type": "Standards Track",
+  "category": "Core",
+  "createdDate": "2026-02-13",
+  "discussionLink": "https://ethereum-magicians.org/t/eip-8163-reserve-0xae-extension-opcode/27756",
+  "reviewer": "bot",
+  "layer": "EL",
+  "forkRelationships": [],
+  "laymanDescription": "Sets aside one EVM instruction slot that Ethereum mainnet promises never to use. Other EVM-compatible chains and Layer 2s can then safely build custom features using that slot, knowing it will never conflict with future Ethereum upgrades.",
+  "stakeholderImpacts": {
+    "endUsers": {
+      "description": "No impact. L1 behavior is unchanged; the reserved opcode already causes a halt today."
+    },
+    "appDevs": {
+      "description": "No impact on L1 smart contract development. Developers on non-L1 EVMs gain a safe namespace for custom instructions."
+    },
+    "walletDevs": {
+      "description": "No impact. The opcode reservation does not alter transaction processing or wallet interfaces."
+    },
+    "toolingInfra": {
+      "description": "Debuggers and tracers may optionally label 0xae as EXTENSION instead of INVALID for clarity, but no functional changes are required."
+    },
+    "layer2s": {
+      "description": "L2 EVM implementations gain a reserved opcode prefix for safe experimentation with custom instructions without risking L1 opcode collisions."
+    },
+    "stakersNodes": {
+      "description": "No impact. Consensus and validator behavior are unaffected by this opcode reservation."
+    },
+    "clClients": {
+      "description": "No changes required. This EIP concerns EVM opcode semantics only and has no consensus-layer implications."
+    },
+    "elClients": {
+      "description": "No consensus-level changes required. Clients may optionally update trace output to label 0xae as EXTENSION rather than INVALID."
+    }
+  },
+  "benefits": [
+    "Enables non-L1 EVM chains to innovate without risking opcode collisions with Ethereum mainnet.",
+    "Successful extensions proven on L2s or sidechains can later be back-ported to L1 via separate EIPs.",
+    "Requires zero changes to Ethereum L1 execution client consensus logic.",
+    "Strengthens EVM ecosystem network effects by encouraging coordinated experimentation across chains."
+  ],
+  "tradeoffs": [
+    "Permanently consumes one opcode slot on L1, reducing the pool of available opcodes for future L1 features."
+  ]
+}

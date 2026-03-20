@@ -1,0 +1,55 @@
+{
+  "id": 8096,
+  "title": "EIP-8096: Increase Gas Cost of Point Evaluation",
+  "status": "Draft",
+  "description": "Doubles the gas cost of the point evaluation precompile (address 0x0A) from 50,000 to 100,000 gas. Benchmarking revealed this precompile, introduced by EIP-4844 for blob KZG verification, is underpriced relative to its actual resource consumption. Correcting this mispricing removes a bottleneck that currently impedes further increases to the block gas limit.",
+  "author": "Marcin Sobczak (@marcindsobczak), Kamil Chodoła (@kamilchodola), Marek Moraczyński (@MarekM25)",
+  "type": "Standards Track",
+  "category": "Core",
+  "createdDate": "2025-12-02",
+  "discussionLink": "https://ethereum-magicians.org/t/eip-8096-point-evaluation-precompile-gas-cost-increase/26867",
+  "reviewer": "bot",
+  "layer": "EL",
+  "forkRelationships": [],
+  "laymanDescription": "The point evaluation precompile verifies blob data on Ethereum but currently charges too little gas for the work it does. This proposal doubles its gas fee from 50,000 to 100,000, aligning cost with actual resource usage and clearing the path for future increases to how much the network can process per block.",
+  "stakeholderImpacts": {
+    "endUsers": {
+      "description": "No direct impact on typical transactions. Applications using blob KZG verification will pay higher gas for point evaluation calls."
+    },
+    "appDevs": {
+      "description": "Contracts calling the point evaluation precompile must account for the doubled gas cost; most applications do not invoke this precompile directly."
+    },
+    "walletDevs": {
+      "description": "No changes required. Gas estimation libraries will automatically reflect the updated precompile cost after activation."
+    },
+    "toolingInfra": {
+      "description": "Gas estimation tools, benchmarking suites, and block explorers must update the hardcoded gas cost for the 0x0A precompile."
+    },
+    "layer2s": {
+      "description": "Rollups using blob transactions for data availability are unaffected; point evaluation is called on-chain, not within rollup execution."
+    },
+    "stakersNodes": {
+      "description": "Validators benefit from reduced worst-case block processing time, supporting safer block gas limit increases."
+    },
+    "elClients": {
+      "description": "Straightforward constant change: update the gas cost for the point evaluation precompile from 50,000 to 100,000 at the activation block."
+    },
+    "clClients": {
+      "description": "No consensus layer changes required. This is purely an execution layer gas repricing of an existing precompile."
+    }
+  },
+  "benefits": [
+    "Corrects underpriced gas for point evaluation, aligning cost with actual resource consumption.",
+    "Removes a bottleneck that currently limits safe increases to the block gas limit.",
+    "Reduces worst-case block validation time, improving network resilience under load.",
+    "Simple, well-understood change following precedent of prior gas repricings."
+  ],
+  "tradeoffs": [
+    "Doubles cost for any on-chain use of the point evaluation precompile, a backwards-incompatible change."
+  ],
+  "northStarAlignment": {
+    "scaleL1": {
+      "description": "Correcting the point evaluation gas cost removes a constraint on raising the block gas limit, directly enabling higher L1 throughput."
+    }
+  }
+}

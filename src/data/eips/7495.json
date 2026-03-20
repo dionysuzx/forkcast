@@ -1,0 +1,56 @@
+{
+  "id": 7495,
+  "title": "EIP-7495: SSZ ProgressiveContainer",
+  "status": "Review",
+  "description": "Introduces a new SSZ type called ProgressiveContainer that provides forward-compatible Merkleization for containers. Each field retains a stable generalized index (gindex) even when newer container versions add or remove fields, preventing Merkle proof breakage across fork boundaries. Serialization remains compact, with absent fields consuming no space.",
+  "author": "Etan Kissling (@etan-status), Cayman (@wemeetagain)",
+  "type": "Standards Track",
+  "category": "Core",
+  "createdDate": "2023-08-18",
+  "discussionLink": "https://ethereum-magicians.org/t/eip-7495-ssz-progressivecontainer/15476",
+  "reviewer": "bot",
+  "layer": "CL",
+  "forkRelationships": [],
+  "laymanDescription": "Today, when Ethereum upgrades change the data structures used by the consensus layer, existing Merkle proof verifiers (like light clients and smart contracts) can break and need costly updates. ProgressiveContainer is a new data format that keeps proof paths stable across upgrades, so verifiers keep working without changes.",
+  "stakeholderImpacts": {
+    "endUsers": {
+      "description": "No direct impact. End users benefit indirectly through more resilient light clients and bridges that no longer break when consensus data structures change."
+    },
+    "appDevs": {
+      "description": "Smart contracts verifying Merkle proofs against beacon state (e.g., EIP-4788 consumers) gain stable gindices, reducing maintenance when forks add or remove fields."
+    },
+    "walletDevs": {
+      "description": "Minimal direct impact. Wallets relying on light client proofs benefit from continued validity of proofs across forks without wallet-side updates."
+    },
+    "toolingInfra": {
+      "description": "SSZ libraries and tooling must implement the new ProgressiveContainer type, including its Merkleization with active_fields mix-in and progressive tree structure."
+    },
+    "layer2s": {
+      "description": "Bridges and L2s verifying beacon chain Merkle proofs on-chain benefit from stable gindices, reducing the need for verifier contract upgrades at each fork."
+    },
+    "stakersNodes": {
+      "description": "No operational changes for stakers. Validators and node operators benefit from a smoother upgrade path as container schemas evolve across forks."
+    },
+    "clClients": {
+      "description": "Consensus clients must implement the new ProgressiveContainer SSZ type, update Merkleization logic for progressive trees, and handle the active_fields bitvector mix-in."
+    },
+    "elClients": {
+      "description": "No direct changes required. EL clients are unaffected since ProgressiveContainer applies to consensus-layer SSZ types only."
+    }
+  },
+  "benefits": [
+    "Preserves stable Merkle proof paths across forks, preventing verifier breakage.",
+    "Reduces upgrade burden for on-chain light clients and smart contract verifiers.",
+    "Enables compact serialization where absent fields consume no space.",
+    "Allows safe field removal with active_fields distinguishing absent from zero values."
+  ],
+  "tradeoffs": [
+    "Adds implementation complexity to SSZ libraries for the new container type.",
+    "Field count limited to 256 including deprecated fields, though sufficient in practice."
+  ],
+  "northStarAlignment": {
+    "improveUX": {
+      "description": "Stable Merkle proofs reduce the need for costly verifier upgrades at each fork, improving the experience for light client and bridge developers."
+    }
+  }
+}

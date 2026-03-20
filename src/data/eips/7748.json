@@ -1,0 +1,57 @@
+{
+  "id": 7748,
+  "title": "EIP-7748: State conversion to Verkle Tree",
+  "status": "Draft",
+  "description": "Proposes a procedure to convert, on each block, a fixed number of key-values from the existing Merkle Patricia Tree (MPT) to the Verkle Tree (VKT). The conversion runs before transaction execution and processes storage slots and account data incrementally, bounded by a configurable stride parameter, until all state has been migrated.",
+  "author": "Guillaume Ballet (@gballet), Ignacio Hagopian (@jsign), Gajinder Singh (@g11tech), Ansgar Dietrichs (@adietrichs), Gottfried Herold (@GottfriedHerold), Jamie Lokier (@jlokier), Tanishq Jasoria (@tanishqjasoria), Parithosh Jayanthi (@parithosh), Gabriel Rocheleau (@gabrocheleau), Karim Taam (@matkt)",
+  "type": "Standards Track",
+  "category": "Core",
+  "createdDate": "2024-07-23",
+  "discussionLink": "https://ethereum-magicians.org/t/eip-7748-state-conversion-to-verkle-tree/20625",
+  "reviewer": "bot",
+  "layer": "EL",
+  "forkRelationships": [],
+  "laymanDescription": "Gradually moves all of Ethereum's stored account and contract data from the old storage format (Merkle Patricia Tree) to a new, more efficient one (Verkle Tree). Each block converts a small batch so the migration completes over time without disrupting normal network operation.",
+  "stakeholderImpacts": {
+    "endUsers": {
+      "description": "No direct impact during or after conversion. Transaction processing continues normally throughout the migration period."
+    },
+    "appDevs": {
+      "description": "No changes to smart contract interfaces or behavior. State access semantics remain identical during and after conversion."
+    },
+    "walletDevs": {
+      "description": "No wallet-facing changes. State proofs may change format after full migration to Verkle Trees, but not during conversion."
+    },
+    "toolingInfra": {
+      "description": "Block explorers and node monitoring tools may need to track conversion progress and handle the dual-tree state during the migration period."
+    },
+    "layer2s": {
+      "description": "No direct impact. Layer 2 protocols relying on state proofs will eventually benefit from smaller Verkle proofs after conversion completes."
+    },
+    "stakersNodes": {
+      "description": "Node operators experience additional per-block processing load during conversion. Nodes must have preimage data available for the migration."
+    },
+    "elClients": {
+      "description": "Significant implementation work: clients must add incremental trie iteration, conversion state tracking, stride-bounded migration logic, and preimage resolution."
+    },
+    "clClients": {
+      "description": "No direct implementation required. Consensus clients are unaffected since state conversion is purely an execution layer concern."
+    }
+  },
+  "benefits": [
+    "Enables full migration to Verkle Trees, unlocking smaller stateless proofs for the network.",
+    "Incremental per-block conversion avoids a disruptive one-time state migration event.",
+    "Allows eventual removal of the Overlay Tree abstraction introduced by EIP-7612.",
+    "Conversion before transaction execution simplifies handling of stale data scenarios."
+  ],
+  "tradeoffs": [
+    "Adds extra per-block processing load on execution clients for the duration of the conversion.",
+    "Requires all nodes to have MPT preimage data available, adding a prerequisite dependency.",
+    "Code chunking in a single step can temporarily exceed the stride limit by up to ~793 units."
+  ],
+  "northStarAlignment": {
+    "scaleL1": {
+      "description": "Completing the Verkle Tree migration enables stateless clients and smaller state proofs, directly supporting L1 scalability."
+    }
+  }
+}

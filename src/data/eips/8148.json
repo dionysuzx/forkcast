@@ -1,0 +1,56 @@
+{
+  "id": 8148,
+  "title": "EIP-8148: Custom sweep threshold for validators",
+  "status": "Draft",
+  "description": "Introduces an optional mechanism for validators with compounding withdrawal credentials (0x02, 0x03) to set custom balance thresholds for sweep withdrawals. Validators specify a threshold above which rewards are automatically swept to their withdrawal address, replacing the current fixed 2,048 ETH default. Uses an EIP-7685 request type with a predeploy contract and fee market similar to EIP-7002.",
+  "author": "Dmitry Gusakov (@dgusakov), Dmitry Chernukhin (@madlabman), Greg Koumoutsos (@gkoumout)",
+  "type": "Standards Track",
+  "category": "Core",
+  "createdDate": "2026-02-05",
+  "discussionLink": "https://ethereum-magicians.org/t/eip-8148-custom-sweep-threshold-for-validators/27669",
+  "reviewer": "bot",
+  "layer": "CL",
+  "forkRelationships": [],
+  "laymanDescription": "Lets validators choose when their staking rewards get automatically sent back to them. Currently, compounding validators must wait until they accumulate 2,048 ETH before rewards are swept. This change allows each validator to pick their own threshold, so rewards can be collected more frequently without manual withdrawal transactions.",
+  "northStarAlignment": {
+    "improveUX": {
+      "description": "Gives validators granular control over reward collection, removing friction around the rigid 2,048 ETH sweep threshold and reducing reliance on manual partial withdrawals."
+    }
+  },
+  "stakeholderImpacts": {
+    "endUsers": {
+      "description": "Stakers gain flexible reward management, choosing when accumulated rewards are automatically swept without manual intervention."
+    },
+    "appDevs": {
+      "description": "Staking protocol developers can integrate custom sweep thresholds to optimize reward flows for their users."
+    },
+    "walletDevs": {
+      "description": "Wallets supporting staking may add UI for setting and displaying custom sweep thresholds via the predeploy contract."
+    },
+    "toolingInfra": {
+      "description": "Monitoring tools must track per-validator sweep thresholds and the new request type in block processing."
+    },
+    "layer2s": {
+      "description": "No direct impact; L2 protocols do not interact with validator sweep mechanics."
+    },
+    "stakersNodes": {
+      "description": "Validators and staking providers gain configurable reward sweeps, incentivizing adoption of compounding credentials."
+    },
+    "clClients": {
+      "description": "Must add validator_sweep_thresholds mapping to BeaconState, process new request type, and update partial withdrawal predicates."
+    },
+    "elClients": {
+      "description": "Must deploy and support a new EIP-7685 predeploy contract with fee market, queue management, and system call handling."
+    }
+  },
+  "benefits": [
+    "Lets compounding validators collect rewards automatically at a self-chosen threshold.",
+    "Removes need for manual partial withdrawals and their unpredictable queue delays.",
+    "Incentivizes adoption of compounding withdrawal credentials by lowering the sweep barrier.",
+    "Fully optional mechanism that does not change default validator behavior."
+  ],
+  "tradeoffs": [
+    "Adds a new predeploy contract and request type, increasing cross-layer implementation surface.",
+    "Introduces per-validator state in BeaconState, growing consensus layer storage over time."
+  ]
+}

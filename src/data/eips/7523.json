@@ -1,0 +1,42 @@
+{
+  "id": 7523,
+  "title": "EIP-7523: Empty accounts deprecation",
+  "status": "Last Call",
+  "description": "Prohibits post-merge network state from containing empty accounts (accounts with no code, zero nonce, and zero balance). Since all empty accounts on Mainnet were already cleared before the merge and no new ones can be created, this formalizes an existing reality. The explicit ban eliminates technical debt from EIP-161 touch rules that clients must otherwise implement and test.",
+  "author": "Peter Davies (@petertdavies)",
+  "type": "Standards Track",
+  "category": "Core",
+  "createdDate": "2023-09-19",
+  "discussionLink": "https://ethereum-magicians.org/t/eip-7523-empty-accounts-deprecation/15870",
+  "reviewer": "bot",
+  "layer": "EL",
+  "forkRelationships": [],
+  "laymanDescription": "Officially bans a type of blank account that used to exist on Ethereum but was cleaned up before the merge. While this changes nothing in practice, it lets developers stop writing and testing code for a situation that can no longer occur, simplifying future work.",
+  "stakeholderImpacts": {
+    "endUsers": {
+      "description": "No impact. Empty accounts no longer exist and this EIP does not change any user-facing behavior."
+    },
+    "appDevs": {
+      "description": "No impact. Smart contract developers are unaffected since empty accounts cannot be created or encountered."
+    },
+    "walletDevs": {
+      "description": "No impact. Wallet behavior is unchanged as empty accounts are already absent from the network."
+    },
+    "toolingInfra": {
+      "description": "Test suites and specification tools can drop post-merge empty account test cases, simplifying maintenance."
+    },
+    "elClients": {
+      "description": "Simplifies implementation by removing EIP-161 empty account touch rules for post-merge contexts, reducing edge cases in new features."
+    },
+    "clClients": {
+      "description": "No direct impact. Empty account handling is an execution layer concern unrelated to consensus client logic."
+    }
+  },
+  "benefits": [
+    "Eliminates ongoing technical debt from EIP-161 empty account touch rules.",
+    "Simplifies client implementation for teams targeting only post-merge block support.",
+    "Reduces edge cases when designing and testing new EVM specification changes.",
+    "Formalizes an already-true network invariant into the specification."
+  ],
+  "tradeoffs": null
+}

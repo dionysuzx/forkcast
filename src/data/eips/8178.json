@@ -1,0 +1,56 @@
+{
+  "id": 8178,
+  "title": "EIP-8178: Binary SSZ Transport for the Engine API",
+  "status": "Draft",
+  "description": "Specifies a binary SSZ transport as an alternative to JSON-RPC for Engine API communication between consensus layer and execution layer clients. Replaces JSON-RPC with resource-oriented REST endpoints and raw SSZ encoding, reducing payload sizes by approximately 50% and eliminating hex encoding and JSON parsing overhead on the critical path for block propagation and validation.",
+  "author": "Giulio Rebuffo (@Giulio2002)",
+  "type": "Standards Track",
+  "category": "Core",
+  "createdDate": "2026-03-01",
+  "discussionLink": "https://ethereum-magicians.org/t/eip-8178-ssz-rest-engine-api-transport/27891",
+  "reviewer": "bot",
+  "layer": "EL",
+  "forkRelationships": [],
+  "laymanDescription": "Replaces the text-based messaging format between Ethereum's two main software components with a compact binary format. This cuts message sizes roughly in half and removes unnecessary conversion steps, making block processing faster without requiring any changes to how the network itself operates.",
+  "stakeholderImpacts": {
+    "endUsers": {
+      "description": "No direct impact. Faster CL-EL communication may marginally improve block propagation times, but user-facing behavior is unchanged."
+    },
+    "appDevs": {
+      "description": "No impact. The Engine API is internal to node operators; application developers do not interact with it directly."
+    },
+    "walletDevs": {
+      "description": "No impact. Wallet software does not interact with the Engine API; this change is invisible to wallet developers."
+    },
+    "toolingInfra": {
+      "description": "Debugging and monitoring tools that inspect Engine API traffic must add SSZ decoding support alongside existing JSON-RPC parsing."
+    },
+    "layer2s": {
+      "description": "No direct impact. Layer 2 systems do not use the Engine API; any benefit from faster block propagation is indirect."
+    },
+    "stakersNodes": {
+      "description": "Node operators gain an optional performance improvement by enabling binary SSZ transport; existing JSON-RPC remains available as a fallback."
+    },
+    "clClients": {
+      "description": "Must implement an HTTP client that sends SSZ-encoded requests to REST endpoints instead of JSON-RPC, aligning with their native SSZ usage."
+    },
+    "elClients": {
+      "description": "Must add REST endpoint routing, SSZ deserialization for all Engine API containers, and serve both transports on the existing Engine API port."
+    }
+  },
+  "benefits": [
+    "Reduces Engine API payload sizes by approximately 50% by eliminating hex encoding overhead.",
+    "Removes JSON parsing and generation CPU overhead from the block propagation critical path.",
+    "Eliminates redundant SSZ-to-JSON-to-internal-type conversion round-trips on both client sides.",
+    "Requires no hard fork; clients can adopt the new transport incrementally via regular releases."
+  ],
+  "tradeoffs": [
+    "Increases implementation surface as clients must support two transports (JSON-RPC and SSZ REST) simultaneously.",
+    "Debugging becomes harder since binary SSZ traffic is not human-readable without specialized tooling."
+  ],
+  "northStarAlignment": {
+    "scaleL1": {
+      "description": "Faster CL-EL communication reduces block propagation and validation latency, supporting higher throughput on L1."
+    }
+  }
+}

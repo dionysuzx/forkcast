@@ -1,0 +1,56 @@
+{
+  "id": 7804,
+  "title": "EIP-7804: Withdrawal Credential Update Request",
+  "status": "Draft",
+  "description": "Defines a mechanism for validators to update their withdrawal credentials via a new execution request type (0x03). Validators can change the execution address and switch between withdrawal credential prefixes (0x01 or 0x02), enabling credential rotation and migration to contract-based withdrawal management without exiting and re-entering the validator set.",
+  "author": "Lucas Saldanha (@lucassaldanha), Mikhail Kalinin (@mkalinin)",
+  "type": "Standards Track",
+  "category": "Core",
+  "createdDate": "2024-10-31",
+  "discussionLink": "https://ethereum-magicians.org/t/eip-7804-withdrawal-credential-update-request/21514",
+  "reviewer": "bot",
+  "layer": "CL",
+  "forkRelationships": [],
+  "laymanDescription": "Lets validators change the address where their staking rewards and withdrawals are sent. Currently, this address is permanently locked. This proposal removes that restriction, allowing validators to rotate credentials for security or switch to smart-contract-based management without the costly process of exiting and re-creating their validator.",
+  "northStarAlignment": {
+    "improveUX": {
+      "description": "Removes the need for validators to exit and re-enter the validator set just to change their withdrawal address, reducing friction and enabling flexible credential management strategies."
+    }
+  },
+  "stakeholderImpacts": {
+    "endUsers": {
+      "description": "Solo stakers and delegators benefit from the ability to rotate withdrawal addresses for security or migrate to contract-based credential management."
+    },
+    "appDevs": {
+      "description": "Staking protocol developers can build contract-based credential management flows, enabling richer on-chain validator governance strategies."
+    },
+    "walletDevs": {
+      "description": "Wallets supporting staking may add UI for credential update requests; no breaking changes to existing withdrawal or deposit flows."
+    },
+    "toolingInfra": {
+      "description": "Staking dashboards and indexers must track the new 0x03 request type and reflect updated withdrawal credentials in validator records."
+    },
+    "layer2s": {
+      "description": "No direct impact. Layer 2 protocols do not interact with validator withdrawal credentials."
+    },
+    "stakersNodes": {
+      "description": "Validators gain credential rotation and can migrate from EOA to contract-based withdrawal management without exiting the validator set."
+    },
+    "clClients": {
+      "description": "Must implement new WithdrawalCredentialUpdateRequest container, process_withdrawal_credential_update_request, and beacon state mutation logic with churn handling."
+    },
+    "elClients": {
+      "description": "Must deploy and integrate a new predeploy contract for credential update requests, handle the 0x03 request type in EIP-7685 processing, and validate block commitments."
+    }
+  },
+  "benefits": [
+    "Enables credential rotation for improved validator security without exiting the validator set.",
+    "Allows migration from EOA to smart-contract-based withdrawal credential management.",
+    "Leverages existing EIP-7685 execution request infrastructure, reducing implementation complexity.",
+    "Supports switching between standard and compounding withdrawal credential types."
+  ],
+  "tradeoffs": [
+    "Introduces a new attack surface where compromised withdrawal credentials could redirect funds before rotation.",
+    "Adds a new predeploy contract and request type, increasing protocol surface area."
+  ]
+}

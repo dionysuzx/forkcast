@@ -1,0 +1,57 @@
+{
+  "id": 8099,
+  "title": "EIP-8099: MEVless Protocol",
+  "status": "Draft",
+  "description": "Introduces blind transaction sequencing to prevent MEV attacks. Block production is split into two phases: sequencing blocks that order transactions by hash without revealing content, and execution blocks that run transactions in the predetermined order. This removes validators' ability to perform sandwich attacks, front-running, and back-running during the ordering phase.",
+  "author": "Lawliet Chan (@lawliet-chan)",
+  "type": "Standards Track",
+  "category": "Core",
+  "createdDate": "2025-09-25",
+  "discussionLink": "https://ethereum-magicians.org/t/mevless-an-anti-mev-protocol/26800",
+  "reviewer": "bot",
+  "layer": "EL",
+  "forkRelationships": [],
+  "laymanDescription": "Prevents validators from exploiting users by hiding transaction details during the ordering step. Transactions are first sorted by their hash, then revealed and executed in that locked-in order. This stops common attacks like sandwich trades that cost DeFi users money.",
+  "stakeholderImpacts": {
+    "endUsers": {
+      "description": "DeFi users would be protected from sandwich attacks and front-running, reducing hidden costs and improving trade execution prices."
+    },
+    "appDevs": {
+      "description": "DeFi developers would no longer need to build MEV-protection mechanisms into their applications, simplifying smart contract design."
+    },
+    "walletDevs": {
+      "description": "Wallets must support two-phase transaction submission: sending a hash with prepayment first, then submitting full transaction content in a separate step."
+    },
+    "toolingInfra": {
+      "description": "Block explorers and mempool monitoring tools must adapt to the two-phase block model, tracking sequencing blocks and execution blocks separately."
+    },
+    "layer2s": {
+      "description": "No direct impact on L2 protocols, though L2 sequencers could adopt a similar blind-sequencing pattern independently."
+    },
+    "stakersNodes": {
+      "description": "Validators lose MEV revenue from transaction ordering. The protocol relies on unpredictable block production to prevent speculative MEV attacks."
+    },
+    "clClients": {
+      "description": "Consensus clients need changes to support alternating sequencing and execution block types, plus randomized block producer selection requirements."
+    },
+    "elClients": {
+      "description": "Execution clients must implement two-phase block processing, new RPC methods (eth_sendTxHash, eth_getTxSequence), hash verification, and prepayment gas economics."
+    }
+  },
+  "benefits": [
+    "Eliminates sandwich attacks and front-running at the protocol level.",
+    "More decentralized than private mempools and more efficient than encrypted mempool approaches.",
+    "Reduces hidden costs for DeFi users by removing extractive MEV.",
+    "Simplifies DeFi application development by removing need for MEV-protection mechanisms."
+  ],
+  "tradeoffs": [
+    "Requires two-phase transaction submission, adding latency and complexity for users and wallets.",
+    "Depends on unpredictable block production; less effective with predictable producer selection.",
+    "Validators lose MEV-derived revenue, potentially reducing staking incentives."
+  ],
+  "northStarAlignment": {
+    "improveUX": {
+      "description": "Protects users from MEV extraction, reducing hidden transaction costs and improving fairness of trade execution in DeFi."
+    }
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "id": 7863,
+  "title": "EIP-7863: Block-level Warming",
+  "status": "Draft",
+  "description": "Introduces block-level address and storage key warming, allowing accessed addresses and storage keys to maintain their warm status throughout an entire block's execution rather than resetting per transaction. Subsequent transactions in the same block pay only warm access costs for previously accessed slots, reducing redundant warming costs and better aligning gas pricing with actual computational overhead.",
+  "author": "Toni Wahrstätter (@nerolation), Jochem Brouwer (@jochem-brouwer), Alex Stokes (@ralexstokes), Ansgar Dietrichs (@adietrichs), Yoav Weiss (@yoavw), Alex Forshtat (@forshtat)",
+  "type": "Standards Track",
+  "category": "Core",
+  "createdDate": "2025-01-15",
+  "discussionLink": "https://ethereum-magicians.org/t/eip-7863-block-level-warming/22572",
+  "reviewer": "bot",
+  "layer": "EL",
+  "forkRelationships": [],
+  "laymanDescription": "Today each transaction must independently pay a high fee the first time it reads a piece of data, even if an earlier transaction in the same block already read it. This proposal lets that data stay 'warm' for the whole block, so later transactions pay less gas for repeat reads.",
+  "stakeholderImpacts": {
+    "endUsers": {
+      "description": "Transactions touching popular contracts or storage slots may cost slightly less gas, especially when grouped with similar transactions in the same block."
+    },
+    "appDevs": {
+      "description": "No contract changes required. Applications interacting with frequently accessed contracts may see modest gas savings without any code modifications."
+    },
+    "walletDevs": {
+      "description": "No wallet changes needed. Gas estimation logic may need minor updates to account for lower costs on warmed slots within a block."
+    },
+    "toolingInfra": {
+      "description": "Gas profiling and simulation tools must model block-level warming sets to accurately estimate costs for transactions later in a block."
+    },
+    "layer2s": {
+      "description": "No direct impact. L2 sequencers posting batches to L1 may see marginal gas savings if their transactions hit already-warmed storage slots."
+    },
+    "stakersNodes": {
+      "description": "Block builders gain new optimization opportunities by ordering transactions to maximize warming benefits; validators see no operational changes."
+    },
+    "elClients": {
+      "description": "Must implement block-level accessed-address and accessed-storage-key tracking sets, propagating warm status across transactions within a block."
+    },
+    "clClients": {
+      "description": "No consensus client changes required. This is purely an execution layer gas repricing mechanism with no beacon chain impact."
+    }
+  },
+  "benefits": [
+    "Reduces redundant gas costs for storage slots accessed by multiple transactions in the same block.",
+    "Aligns gas pricing more closely with actual computational costs of modern client caching.",
+    "Improves effective network throughput by roughly 5% without weakening security guarantees.",
+    "Fully backward compatible: existing contracts and transactions continue to work, gas only decreases."
+  ],
+  "tradeoffs": [
+    "First transaction in a block bears full warming cost while later transactions benefit for free.",
+    "Introduces new MEV vector: builders can order transactions to exploit block-level warming savings."
+  ],
+  "northStarAlignment": {
+    "scaleL1": {
+      "description": "Reduces effective gas consumption for repeated storage access within a block, increasing L1 throughput by approximately 5%."
+    }
+  }
+}

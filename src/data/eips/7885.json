@@ -1,0 +1,59 @@
+{
+  "id": 7885,
+  "title": "EIP-7885: Precompile for NTT operations",
+  "status": "Draft",
+  "description": "Adds four precompiled contracts for Number Theoretic Transform (NTT) operations: forward NTT, inverse NTT, vectorized modular multiplication, and vectorized modular addition. These enable efficient polynomial multiplication needed for post-quantum signature verification (Falcon, Dilithium) and STARK proof verification, reducing gas costs by over 70% compared to pure Solidity implementations.",
+  "author": "Renaud Dubois (@rdubois-crypto), Simon Masson (@simonmasson), Yoon Hyoung Lee (@yhl125)",
+  "type": "Standards Track",
+  "category": "Core",
+  "createdDate": "2025-02-12",
+  "discussionLink": "https://ethereum-magicians.org/t/eip-7885-precompile-for-ntt-operations/22895",
+  "reviewer": "bot",
+  "layer": "EL",
+  "forkRelationships": [],
+  "laymanDescription": "Adds built-in math operations to Ethereum that make it dramatically cheaper to verify post-quantum cryptographic signatures on-chain. These same operations also speed up zero-knowledge proof verification. This prepares Ethereum for a future where quantum computers could break current signature schemes.",
+  "stakeholderImpacts": {
+    "endUsers": {
+      "description": "No immediate change. In the future, enables quantum-resistant account signatures at practical gas costs, protecting user funds against quantum attacks."
+    },
+    "appDevs": {
+      "description": "Smart contract developers gain access to efficient polynomial arithmetic via four new precompiles, enabling post-quantum signature verification and faster STARK proof checks."
+    },
+    "walletDevs": {
+      "description": "No immediate impact. Eventually enables wallets to support post-quantum signature schemes like Falcon and Dilithium for transaction signing."
+    },
+    "toolingInfra": {
+      "description": "Development tools and testing frameworks must support the four new precompile addresses and their input/output encoding formats."
+    },
+    "layer2s": {
+      "description": "L2s using STARK-based proofs benefit from cheaper on-chain verification. The precompiles support fields used by Risc0, Plonky2, and Circle STARKs."
+    },
+    "stakersNodes": {
+      "description": "No direct impact on validators or staking operations. Node operators must upgrade clients to include the new precompile implementations."
+    },
+    "elClients": {
+      "description": "Must implement four new precompiled contracts with NTT algorithms, scheme-specific gas metering, and input validation for multiple cryptographic parameter sets."
+    },
+    "clClients": {
+      "description": "No consensus layer changes required. This EIP only adds execution layer precompiles."
+    }
+  },
+  "benefits": [
+    "Reduces post-quantum signature verification gas costs by over 70% compared to pure Solidity.",
+    "Provides cryptographic agility, supporting Falcon, Dilithium, Kyber, and multiple STARK fields.",
+    "Accelerates on-chain STARK proof verification through efficient polynomial multiplication.",
+    "Prepares Ethereum for quantum computing threats without committing to a single algorithm."
+  ],
+  "tradeoffs": [
+    "Adds four new precompiles, increasing EL client implementation and maintenance burden.",
+    "Gas cost model varies by cryptographic scheme, adding complexity to gas estimation."
+  ],
+  "northStarAlignment": {
+    "scaleL1": {
+      "description": "Speeds up on-chain STARK proof verification by providing efficient NTT operations over fields used by major proof systems (Risc0, Plonky2, Circle STARKs)."
+    },
+    "improveUX": {
+      "description": "Enables practical post-quantum signature verification on L1, protecting users against future quantum computing threats at reasonable gas costs."
+    }
+  }
+}

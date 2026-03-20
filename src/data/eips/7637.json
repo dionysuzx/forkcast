@@ -1,0 +1,48 @@
+{
+  "id": 7637,
+  "title": "EIP-7637: Optimize EOA EXTCODEHASH",
+  "status": "Stagnant",
+  "description": "Optimizes EIP-1052 by changing EXTCODEHASH to return 0x for externally owned accounts (EOAs) that have a balance but no code. Currently, such accounts return keccak256(\"\") instead of 0x, creating a confusing distinction that discourages safe use of EXTCODEHASH for contract-existence checks and wastes gas in patterns like Uniswap V2's address lookups.",
+  "author": "Jame (@ZWJKFLC)",
+  "type": "Standards Track",
+  "category": "Core",
+  "createdDate": "2024-02-26",
+  "discussionLink": "https://ethereum-magicians.org/t/eip-7637-extcodehash-optimize/18946",
+  "reviewer": "bot",
+  "layer": "EL",
+  "forkRelationships": [],
+  "laymanDescription": "When checking whether an Ethereum address is a regular wallet or a smart contract, the current answer changes depending on whether the wallet holds ETH. This proposal makes the answer consistent regardless of balance, simplifying contract-existence checks and saving gas for applications like decentralized exchanges.",
+  "stakeholderImpacts": {
+    "endUsers": {
+      "description": "No direct user-facing change; contracts that rely on EXTCODEHASH may become cheaper to call, slightly reducing transaction fees."
+    },
+    "appDevs": {
+      "description": "Simplifies contract-existence checks; developers can safely use codehash == 0 without worrying about the balance edge case introduced by EIP-1052."
+    },
+    "walletDevs": {
+      "description": "No impact on wallet interfaces or transaction construction; the change is internal to EVM opcode semantics."
+    },
+    "toolingInfra": {
+      "description": "Debuggers and state inspection tools must update EXTCODEHASH expectations for funded EOAs, reflecting the new return value."
+    },
+    "elClients": {
+      "description": "Small change to EXTCODEHASH opcode handler: add a check for the empty-code keccak256 hash and return zero instead. Low implementation complexity."
+    },
+    "clClients": {
+      "description": "No consensus-layer changes required; this is purely an execution-layer opcode modification."
+    }
+  },
+  "benefits": [
+    "Enables safe, gas-efficient contract-existence checks using codehash == 0.",
+    "Removes a confusing EIP-1052 edge case that discourages EXTCODEHASH adoption.",
+    "Saves gas for protocols like Uniswap V2 that check address occupancy."
+  ],
+  "tradeoffs": [
+    "Breaks contracts that use EXTCODEHASH to detect whether a codeless address holds a balance."
+  ],
+  "northStarAlignment": {
+    "scaleL1": {
+      "description": "Reduces gas cost of on-chain contract-existence checks, improving L1 execution efficiency for high-volume patterns."
+    }
+  }
+}

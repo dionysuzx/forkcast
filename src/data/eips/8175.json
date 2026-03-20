@@ -1,0 +1,56 @@
+{
+  "id": 8175,
+  "title": "EIP-8175: Composable Transaction",
+  "status": "Draft",
+  "description": "Introduces a new EIP-2718 transaction type called the Composable transaction. Base fields follow EIP-1559 with the access list removed. Signatures are encoded as typed capabilities in a trailing RLP list, each carrying a capability type and signature type for domain separation. A payer signature capability enables native transaction sponsorship. This is a simpler alternative to EIP-8141, requiring zero new opcodes and minimal changes to transaction processing.",
+  "author": "Dragan Rakita (@rakita)",
+  "type": "Standards Track",
+  "category": "Core",
+  "createdDate": "2026-02-26",
+  "discussionLink": "https://ethereum-magicians.org/t/eip-8175-composable-transaction/27850",
+  "reviewer": "bot",
+  "layer": "EL",
+  "forkRelationships": [],
+  "laymanDescription": "Creates a flexible new transaction format where features like gas sponsorship are added as plug-in capabilities instead of requiring entirely new transaction types for each upgrade. A third party can co-sign a transaction to pay gas fees on behalf of the sender, with no new opcodes needed.",
+  "stakeholderImpacts": {
+    "endUsers": {
+      "description": "Enables gasless transactions where a third party pays fees, lowering onboarding friction for new users."
+    },
+    "appDevs": {
+      "description": "Applications can integrate native sponsorship flows without relying on off-chain relayer infrastructure or meta-transaction wrappers."
+    },
+    "walletDevs": {
+      "description": "Wallets must support constructing and co-signing the new composable transaction type with capability-based signature fields."
+    },
+    "toolingInfra": {
+      "description": "Transaction decoders, explorers, and RLP libraries must parse the new capability-based payload format and signature types."
+    },
+    "layer2s": {
+      "description": "Layer 2 sequencers and bridges handling L1 transactions must recognize and validate the new composable transaction type."
+    },
+    "stakersNodes": {
+      "description": "Validators must accept and validate the new transaction type in mempools, including payer signature verification."
+    },
+    "elClients": {
+      "description": "Moderate complexity: implement new transaction type with capability parsing, multi-signature verification, and payer-based gas charging logic."
+    },
+    "clClients": {
+      "description": "Minimal impact. Consensus clients handle fork activation plumbing but no new beacon chain logic is required."
+    }
+  },
+  "benefits": [
+    "Enables native transaction sponsorship without new opcodes or execution modes.",
+    "Extensible capability model avoids combinatorial growth of transaction types per upgrade.",
+    "Supports alternative signature schemes like Ed25519 via typed capabilities.",
+    "Simpler and smaller attack surface compared to frame-based approaches like EIP-8141."
+  ],
+  "tradeoffs": [
+    "Adds a new transaction type that all clients and tooling must support.",
+    "Ed25519 signature support introduces a new cryptographic dependency for the EVM ecosystem."
+  ],
+  "northStarAlignment": {
+    "improveUX": {
+      "description": "Native transaction sponsorship lets third parties pay gas on behalf of users, removing a major onboarding barrier."
+    }
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "id": 7851,
+  "title": "EIP-7851: Deactivate a Delegated EOA's Key",
+  "status": "Draft",
+  "description": "Introduces a system contract enabling EIP-7702 delegated EOAs to irreversibly deactivate their ECDSA private key for transaction sending and authorizations. Deactivation uses a 7-day cancellation window before finalization. After the delay, the key is permanently deactivated in-protocol. The system contract serves as the single source of truth for key status.",
+  "author": "Liyi Guo (@colinlyguo), Nicolas Consigny (@nconsigny)",
+  "type": "Standards Track",
+  "category": "Core",
+  "createdDate": "2024-12-27",
+  "discussionLink": "https://ethereum-magicians.org/t/eip-7851-deactivate-reactivate-a-delegated-eoas-key/22344",
+  "reviewer": "bot",
+  "layer": "EL",
+  "forkRelationships": [],
+  "laymanDescription": "Lets users who have upgraded their Ethereum account to a smart contract wallet permanently turn off their original private key after a 7-day safety window. This prevents anyone, including a future quantum computer, from using the old key to override the smart contract wallet.",
+  "stakeholderImpacts": {
+    "endUsers": {
+      "description": "Users with EIP-7702 delegated accounts gain an opt-in path to permanently disable their ECDSA key, strengthening account security against key compromise and quantum threats."
+    },
+    "appDevs": {
+      "description": "Contracts using ECDSA signatures (e.g., permit) should check deactivation status via the system contract; non-upgradeable contracts may need a companion ecRecover change."
+    },
+    "walletDevs": {
+      "description": "Wallets supporting EIP-7702 accounts must surface the deactivation flow, 7-day delay status, and cancellation option, with clear warnings about irreversibility."
+    },
+    "toolingInfra": {
+      "description": "Indexers and explorers need to track the system contract's deactivation state and display key status (active, pending, deactivated, dormant) for delegated EOAs."
+    },
+    "layer2s": {
+      "description": "No direct impact unless L2s independently adopt the same deactivation mechanism; existing L2 operations are unaffected."
+    },
+    "stakersNodes": {
+      "description": "No direct impact on validators or staking operations; the change applies only to EOA transaction validation, not consensus."
+    },
+    "elClients": {
+      "description": "Must deploy the system contract at fork activation, add a storage read during transaction validation for delegated senders, and increase PER_AUTH_BASE_COST by 2100 gas."
+    },
+    "clClients": {
+      "description": "No consensus-layer changes required; this EIP operates entirely within the execution layer via a system contract and transaction validation rules."
+    }
+  },
+  "benefits": [
+    "Provides a one-way migration path from EOA to full smart contract wallet control.",
+    "Strengthens post-quantum security by permanently disabling ECDSA signing authority.",
+    "7-day cancellation window protects against accidental or unauthorized deactivation.",
+    "Uses the established system contract pattern, avoiding account state or precompile complexity."
+  ],
+  "tradeoffs": [
+    "Deactivation is irreversible; users who lose access to their delegate contract lose the account permanently.",
+    "Adds a storage read per delegated sender during transaction validation, increasing gas costs."
+  ],
+  "northStarAlignment": {
+    "improveUX": {
+      "description": "Enables EOA users to fully transition to smart contract wallets with confidence that the original key cannot override wallet logic."
+    }
+  }
+}

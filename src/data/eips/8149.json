@@ -1,0 +1,56 @@
+{
+  "id": 8149,
+  "title": "EIP-8149: Multi KZG Point Evaluation Precompile",
+  "status": "Draft",
+  "description": "Adds a new precompile that verifies multiple KZG openings against a single EIP-4844 blob commitment in one call. The existing point-evaluation precompile costs 50,000 gas per opening; this batch interface verifies multiple openings together with a linear gas model, reducing overhead for contracts that need to read several blob values such as fraud proofs.",
+  "author": "Chris Mata (@protocolwhisper)",
+  "type": "Standards Track",
+  "category": "Core",
+  "createdDate": "2026-02-06",
+  "discussionLink": "https://ethereum-magicians.org/t/eip-8149-multi-kzg-point-evaluation-precompile/27671",
+  "reviewer": "bot",
+  "layer": "EL",
+  "forkRelationships": [],
+  "laymanDescription": "Currently, reading multiple values from a blob on-chain requires paying a high gas fee for each value separately. This proposal lets contracts verify many blob values at once in a single cheaper call, making fraud proofs and other blob-reading operations significantly less expensive.",
+  "stakeholderImpacts": {
+    "endUsers": {
+      "description": "No direct impact. Users interacting with rollups or blob-dependent applications may benefit from lower fees if contracts adopt batch verification."
+    },
+    "appDevs": {
+      "description": "Contracts reading multiple blob values (e.g., fraud proofs) can call one precompile instead of many, reducing gas costs and simplifying logic."
+    },
+    "walletDevs": {
+      "description": "No impact. The new precompile does not change transaction formats, signing flows, or wallet-facing interfaces."
+    },
+    "toolingInfra": {
+      "description": "Tooling that traces or simulates precompile calls must add support for the new multi-point evaluation address and its input/output format."
+    },
+    "layer2s": {
+      "description": "Rollups using blob data for fraud proofs or data availability verification benefit directly from cheaper batch KZG verification on L1."
+    },
+    "stakersNodes": {
+      "description": "No direct impact on stakers or node operators beyond the standard upgrade to support the new precompile."
+    },
+    "elClients": {
+      "description": "Must implement the new precompile including multi-point KZG verification with BLS12-381 pairings, input validation, and gas metering."
+    },
+    "clClients": {
+      "description": "No consensus-layer changes required. The precompile operates entirely within the execution layer."
+    }
+  },
+  "benefits": [
+    "Reduces gas costs for contracts verifying multiple blob values by batching KZG proofs.",
+    "Enables more practical on-chain fraud proofs that need to read several blob fields.",
+    "Preserves backward compatibility with existing EIP-4844 transactions and the current precompile.",
+    "Bounds input size with MAX_MULTI_POINTS to prevent abuse while allowing meaningful savings."
+  ],
+  "tradeoffs": [
+    "Adds a new precompile that all execution clients must implement and maintain.",
+    "Gas constants are TBD and must be carefully benchmarked to reflect actual computational cost."
+  ],
+  "northStarAlignment": {
+    "scaleBlobs": {
+      "description": "Directly reduces the cost of verifying blob data on-chain, making blob-dependent applications like fraud proofs more viable."
+    }
+  }
+}

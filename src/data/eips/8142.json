@@ -1,0 +1,56 @@
+{
+  "id": 8142,
+  "title": "EIP-8142: Block-in-Blobs (BiB)",
+  "status": "Draft",
+  "description": "When zkEVMs replace re-execution, validators no longer download execution payloads, breaking the implicit data-availability guarantee. Block-in-Blobs requires execution-payload data (transactions and block access lists) to be encoded into blobs within the same beacon block, ensuring payload data remains available via the existing DAS mechanism even after zkEVM proofs become mandatory for consensus.",
+  "author": "Kevaundray Wedderburn (@kevaundray), Ignacio Hagopian (@jsign), Jihoon Song, Francesco Risitano (@frisitano), Thomas Thiery (@soispoke), Toni Wahrstätter (@nerolation)",
+  "type": "Standards Track",
+  "category": "Core",
+  "createdDate": "2026-01-29",
+  "discussionLink": "https://ethereum-magicians.org/t/eip-8142-block-in-blobs-bib/27621",
+  "reviewer": "bot",
+  "layer": "EL",
+  "forkRelationships": [],
+  "laymanDescription": "Today, Ethereum nodes verify blocks by downloading and re-running all transactions. Future zero-knowledge proofs could let nodes skip that step, but then a block builder could hide the transaction data. This proposal makes builders publish transaction data inside blobs so it stays available to everyone.",
+  "stakeholderImpacts": {
+    "endUsers": {
+      "description": "No direct impact. Payload data availability is preserved transparently; users continue transacting without changes."
+    },
+    "appDevs": {
+      "description": "No application-level changes required. Smart contract interfaces and transaction formats remain the same."
+    },
+    "walletDevs": {
+      "description": "No wallet changes needed. Transaction construction and submission are unaffected by payload-blob encoding."
+    },
+    "toolingInfra": {
+      "description": "Block explorers and indexers must reconstruct execution payloads from blobs; RPC providers benefit from guaranteed data availability."
+    },
+    "layer2s": {
+      "description": "No direct impact. L2s relying on L1 data availability benefit from the stronger guarantee that payload data is always published."
+    },
+    "stakersNodes": {
+      "description": "Validators gain assurance that execution payload data remains available post-zkEVM, preventing builder data-withholding attacks."
+    },
+    "clClients": {
+      "description": "Minimal changes: must interpret the payload_blob_count field in the execution payload header to distinguish payload-blobs from transaction blobs."
+    },
+    "elClients": {
+      "description": "Significant changes: must implement payload-to-blob encoding/decoding, modify engine_getPayload and engine_newPayload, and add the payload_blob_count header field."
+    }
+  },
+  "benefits": [
+    "Preserves execution payload data availability when zkEVM proofs replace re-execution.",
+    "Prevents builder data-withholding attacks that could monopolize block production.",
+    "Reuses existing blob and DAS infrastructure without introducing new networking layers.",
+    "Ensures RPC providers and indexers can always reconstruct full execution payloads."
+  ],
+  "tradeoffs": [
+    "Payload-blobs consume blob capacity, reducing space available for user blob transactions.",
+    "Builders face higher bandwidth requirements since payload-blobs are not pre-propagated via mempool."
+  ],
+  "northStarAlignment": {
+    "scaleL1": {
+      "description": "Enables the transition to zkEVM-verified execution by solving the data availability problem that arises when validators no longer re-execute payloads, a prerequisite for scaling L1 throughput."
+    }
+  }
+}

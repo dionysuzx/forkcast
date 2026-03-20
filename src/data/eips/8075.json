@@ -1,0 +1,57 @@
+{
+  "id": 8075,
+  "title": "EIP-8075: Adaptive state cost to cap growth & scale L1",
+  "status": "Draft",
+  "description": "Introduces an EIP-4844-style fee market for state creation, dynamically adjusting the gas cost per state byte to target 250 MiB/day of state growth. State creation and regular gas receive separate block limits, preventing state gas from crowding out compute and other operations. A normalized aggregate of both is used when updating the base fee, preserving unified transaction pricing.",
+  "author": "Anders Elowsson (@anderselowsson), Francesco D'Amato (@fradamt), Maria Silva (@misilva73)",
+  "type": "Standards Track",
+  "category": "Core",
+  "createdDate": "2025-10-02",
+  "discussionLink": "https://ethereum-magicians.org/t/eip-8075-adaptive-state-cost-to-cap-growth-scale-l1/26450",
+  "reviewer": "bot",
+  "layer": "EL",
+  "forkRelationships": [],
+  "laymanDescription": "Currently, growing the Ethereum gas limit also grows the blockchain's stored data at an unsustainable rate. This proposal creates a separate, self-adjusting price for adding new data to the state, targeting a safe daily growth rate. By giving state its own budget, Ethereum can raise throughput for regular transactions without database bloat.",
+  "stakeholderImpacts": {
+    "endUsers": {
+      "description": "Transactions that create new state (accounts, storage slots) may cost more or less over time as the adaptive mechanism adjusts, but wallets handle this automatically."
+    },
+    "appDevs": {
+      "description": "Smart contract developers should minimize unnecessary state creation. Existing contracts work unchanged, but gas estimates for state-heavy operations will fluctuate."
+    },
+    "walletDevs": {
+      "description": "Wallets must fetch excess_state_bytes to compute state_gas_per_byte and add a margin to gas limits for state-heavy transactions, similar to blob fee handling."
+    },
+    "toolingInfra": {
+      "description": "Block explorers and gas estimators must track new header fields (state_bytes_created, state_bytes_cleared, excess_state_bytes) and the separate state gas dimension."
+    },
+    "layer2s": {
+      "description": "No direct impact on L2 protocols. L2s posting state roots or data to L1 may see fluctuating costs for storage-set operations under the adaptive pricing."
+    },
+    "stakersNodes": {
+      "description": "Node operators benefit from capped state growth, keeping database sizes manageable and sustaining long-term performance as the gas limit increases."
+    },
+    "clClients": {
+      "description": "Minimal direct impact. Consensus clients may need to handle the new header fields during block validation but core CL logic is unaffected."
+    },
+    "elClients": {
+      "description": "Significant implementation work: separate gas accounting for regular and state gas, new header fields, EIP-4844-style excess tracking, and modified base fee calculation."
+    }
+  },
+  "benefits": [
+    "Precisely caps state growth at a sustainable target regardless of gas limit increases.",
+    "Unlocks 50-300% more non-state throughput by exempting state from the regular gas limit.",
+    "Uses a proven EIP-4844-style mechanism, keeping the existing transaction format intact.",
+    "Smoothly adjusts state cost between blocks, limiting price drift to at most 0.1% per block."
+  ],
+  "tradeoffs": [
+    "Wallets must estimate state gas margins, adding complexity to gas limit calculation.",
+    "Tight gas limits on state-heavy transactions risk failure if state_gas_per_byte drifts between submission and execution.",
+    "Introduces a new gas dimension, increasing protocol and tooling complexity."
+  ],
+  "northStarAlignment": {
+    "scaleL1": {
+      "description": "Directly enables L1 scaling by decoupling state cost from the block gas limit, allowing significant throughput increases without proportional state bloat."
+    }
+  }
+}

@@ -1,0 +1,53 @@
+{
+  "id": 8131,
+  "title": "EIP-8131: Add Auth Data to EIP-7623 Floor",
+  "status": "Draft",
+  "description": "Includes EIP-7702 authorization data in the EIP-7623 floor gas calculation, closing a loophole that allows ~9% larger blocks than intended. Each authorization tuple is charged a flat 4,040 gas toward the floor, derived from its 101-byte size. This prevents circumvention of floor pricing by combining calldata with authorization lists while leaving normal transaction patterns unaffected.",
+  "author": "Toni Wahrstätter (@nerolation)",
+  "type": "Standards Track",
+  "category": "Core",
+  "createdDate": "2025-01-21",
+  "discussionLink": "https://ethereum-magicians.org/t/eip-9999-add-auth-data-to-eip-7623-floor/12345",
+  "reviewer": "bot",
+  "layer": "EL",
+  "forkRelationships": [],
+  "laymanDescription": "Fixes a gap in Ethereum's gas pricing rules where certain transactions could make blocks about 9% bigger than intended. By counting authorization data toward the minimum gas fee, this change ensures all transaction data is fairly priced and blocks stay within their intended size limits.",
+  "stakeholderImpacts": {
+    "endUsers": {
+      "description": "No noticeable impact for typical users. Transactions using EIP-7702 authorizations alongside large calldata may see slightly higher gas costs."
+    },
+    "appDevs": {
+      "description": "No code changes required. Applications heavily combining calldata with EIP-7702 authorizations should verify gas estimates still hold."
+    },
+    "walletDevs": {
+      "description": "Gas estimation logic must account for the new floor contribution from authorization tuples when constructing EIP-7702 transactions."
+    },
+    "toolingInfra": {
+      "description": "Gas estimation tools and transaction simulators need to incorporate authorization data into floor gas calculations for accurate results."
+    },
+    "layer2s": {
+      "description": "No direct impact. Layer 2 protocols posting calldata to L1 do not use EIP-7702 authorization lists, so floor pricing is unchanged for them."
+    },
+    "stakersNodes": {
+      "description": "Blocks remain within intended size limits, preventing potential resource pressure from the ~9% oversized block loophole."
+    },
+    "elClients": {
+      "description": "Must update floor gas calculation to include a flat per-authorization cost. Straightforward change to intrinsic gas and validity checks."
+    },
+    "clClients": {
+      "description": "No consensus layer changes required. This is purely an execution layer gas accounting modification."
+    }
+  },
+  "benefits": [
+    "Closes a loophole allowing ~9% larger blocks than intended via authorization list abuse.",
+    "Preserves EIP-7623 block size guarantees without changing overall gas limits or security parameters.",
+    "Uses a simple flat cost per authorization, avoiding complex byte-level accounting overhead.",
+    "Normal transactions are unaffected since execution cost already dominates the floor for typical usage."
+  ],
+  "tradeoffs": null,
+  "northStarAlignment": {
+    "scaleL1": {
+      "description": "Enforces intended block size limits by closing a gas pricing loophole, ensuring L1 resource usage stays predictable and within bounds."
+    }
+  }
+}

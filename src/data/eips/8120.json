@@ -1,0 +1,53 @@
+{
+  "id": 8120,
+  "title": "EIP-8120: MLOAD8 and CALLDATALOAD8 Opcodes",
+  "status": "Draft",
+  "description": "Introduces two new EVM opcodes, MLOAD8 and CALLDATALOAD8, for loading a single byte from memory or calldata in one operation. Currently, reading a single byte requires a 32-byte load followed by a bit shift, costing 9 gas and extra bytecode. These opcodes reduce per-byte reads to 3 gas and save approximately 3 bytes of deployed bytecode per occurrence.",
+  "author": "Helkomine (@Helkomine)",
+  "type": "Standards Track",
+  "category": "Core",
+  "createdDate": "2026-01-07",
+  "discussionLink": "https://ethereum-magicians.org/t/eip-8120-mload8-and-calldataload8-opcodes/27396",
+  "reviewer": "bot",
+  "layer": "EL",
+  "forkRelationships": [],
+  "laymanDescription": "Adds two new instructions to Ethereum's virtual machine that let smart contracts read a single byte of data more cheaply. Today this requires multiple steps; these new instructions do it in one step, saving gas fees and making contracts smaller.",
+  "stakeholderImpacts": {
+    "endUsers": {
+      "description": "No direct impact. Contracts using byte-oriented parsing may become slightly cheaper to call due to reduced gas consumption."
+    },
+    "appDevs": {
+      "description": "Smart contract developers gain efficient single-byte access opcodes, reducing gas costs and bytecode size for byte-oriented parsing logic."
+    },
+    "walletDevs": {
+      "description": "No impact. These opcodes operate at the EVM level and do not change transaction formats or wallet interfaces."
+    },
+    "toolingInfra": {
+      "description": "Debuggers, disassemblers, and EVM tooling must add support for the two new opcodes and their semantics."
+    },
+    "layer2s": {
+      "description": "L2 chains running EVM-compatible execution environments would need to implement the new opcodes to maintain compatibility."
+    },
+    "stakersNodes": {
+      "description": "No direct impact beyond running updated client software that supports the new opcodes after activation."
+    },
+    "elClients": {
+      "description": "Must implement two new opcodes with single-byte load semantics, memory expansion rules for MLOAD8, and appropriate gas metering. Low complexity."
+    },
+    "clClients": {
+      "description": "No consensus client changes required. This is purely an EVM execution layer change requiring only fork-activation awareness."
+    }
+  },
+  "benefits": [
+    "Reduces gas cost for single-byte reads from 9 gas to 3 gas.",
+    "Shrinks deployed bytecode by approximately 3 bytes per single-byte access.",
+    "Completes opcode symmetry by pairing MLOAD8 with the existing MSTORE8.",
+    "Benefits contracts that parse byte-oriented calldata or instruction streams."
+  ],
+  "tradeoffs": null,
+  "northStarAlignment": {
+    "scaleL1": {
+      "description": "Reduces gas consumption and bytecode size for byte-oriented contract operations, improving L1 execution efficiency."
+    }
+  }
+}

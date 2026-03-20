@@ -1,0 +1,50 @@
+{
+  "id": 7906,
+  "title": "EIP-7906: Transaction Assertions via State Diff Opcode",
+  "status": "Draft",
+  "description": "Introduces a TXTRACE opcode that allows contracts to inspect transaction state diffs on-chain, including balance changes, storage slot changes, contract deployments, and emitted events. A companion EVENTDATACOPY opcode copies variable-length event data into memory. Together they let contracts define enforceable assertions about transaction outcomes, protecting users from unintended behavior.",
+  "author": "Alex Forshtat (@forshtat), Shahaf Nacson (@shahafn), Dror Tirosh (@drortirosh), Yoav Weiss (@yoavw)",
+  "type": "Standards Track",
+  "category": "Core",
+  "createdDate": "2025-02-21",
+  "discussionLink": "https://ethereum-magicians.org/t/eip-restricted-behavior-transaction-type/23130",
+  "reviewer": "bot",
+  "layer": "EL",
+  "forkRelationships": [],
+  "laymanDescription": "Adds a new instruction to the EVM that lets smart contracts see exactly what a transaction has changed so far, such as balances, storage, and events. Wallets can use this to verify that a transaction only does what the user expects, reducing blind-signing risks and protecting against theft.",
+  "stakeholderImpacts": {
+    "endUsers": {
+      "description": "Wallets gain the ability to enforce transaction outcome assertions, significantly reducing blind-signing risk and protecting users from malicious or unexpected contract behavior."
+    },
+    "appDevs": {
+      "description": "Developers can build assertion contracts that verify transaction outcomes on-chain, enabling new safety patterns for DeFi protocols and user-facing applications."
+    },
+    "walletDevs": {
+      "description": "Wallets can integrate assertion checks that restrict transaction outcomes before signing, offering users verifiable guarantees about what a transaction will do."
+    },
+    "toolingInfra": {
+      "description": "Debuggers, simulators, and security tools must support the new TXTRACE and EVENTDATACOPY opcodes for accurate execution tracing and testing."
+    },
+    "elClients": {
+      "description": "Execution clients must implement two new opcodes, track cumulative state diffs during transaction execution, and expose them efficiently to the EVM."
+    },
+    "clClients": {
+      "description": "No direct impact. The proposal only adds EVM opcodes; consensus clients require no logic changes beyond fork-activation configuration."
+    }
+  },
+  "benefits": [
+    "Enables on-chain enforcement of transaction outcome assertions, reducing blind-signing risk.",
+    "Provides wallets with verifiable guarantees about what a transaction will change.",
+    "Fully backwards compatible, using previously unused opcode slots.",
+    "Creates a foundation for ecosystem-wide transaction safety tooling."
+  ],
+  "tradeoffs": [
+    "Gas costs for TXTRACE are still TBD, which may affect practical usability.",
+    "Incomplete assertions could give users a false sense of security."
+  ],
+  "northStarAlignment": {
+    "improveUX": {
+      "description": "Directly addresses blind-signing risk by allowing wallets to enforce verifiable assertions about transaction outcomes before execution."
+    }
+  }
+}
