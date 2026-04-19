@@ -40,8 +40,16 @@ interface CallData {
 }
 
 interface CallConfig {
+  name?: string;
   videoUrl?: string;
   issue?: number;
+  agendaIssue?: number;
+  meetingTitle?: string;
+  parent?: {
+    series: string;
+    number: number;
+    issue?: number;
+  };
   sync?: {
     transcriptStartTime: string | null;
     videoStartTime: string | null;
@@ -152,9 +160,12 @@ const CallPage: React.FC = () => {
 
   // Set meta tags for social previews
   const matchingCall = useMemo(() => {
+    if (normalizedPath) {
+      return protocolCalls.find(c => c.path === normalizedPath) ?? null;
+    }
     if (!callData) return null;
     return protocolCalls.find(c => c.type === callData.type.toLowerCase() && c.number === callData.number) ?? null;
-  }, [callData]);
+  }, [callData, normalizedPath]);
   const callName = callData
     ? (matchingCall?.name || `${callTypeNames[callData.type.toLowerCase() as CallType] || callData.type}${isOneOffCall(callData.type.toLowerCase()) ? '' : ` #${callData.number}`}`)
     : 'Call';
@@ -186,6 +197,18 @@ const CallPage: React.FC = () => {
       nextCall: currentIndex < seriesCalls.length - 1 ? seriesCalls[currentIndex + 1] : null,
     };
   }, [callData]);
+
+  const parentCall = useMemo(() => {
+    if (!matchingCall?.parentPath) return null;
+    return protocolCalls.find(call => call.path === matchingCall.parentPath) ?? null;
+  }, [matchingCall]);
+
+  const breakoutChildren = useMemo(() => {
+    if (!matchingCall) return [];
+    return protocolCalls
+      .filter(call => call.parentPath === matchingCall.path)
+      .sort((a, b) => a.type.localeCompare(b.type) || a.number.localeCompare(b.number));
+  }, [matchingCall]);
 
   // Handle search parameters from URL for direct navigation
   useEffect(() => {
@@ -541,11 +564,6 @@ const CallPage: React.FC = () => {
         } else {
           const videoResponse = await fetch(`/artifacts/${artifactPath}/video.txt`);
           videoUrl = videoResponse.ok ? (await videoResponse.text()).trim() : undefined;
-        }
-
-        // Fallback for testing if no URL found
-        if (!videoUrl) {
-          videoUrl = 'https://www.youtube.com/watch?v=wF0gWBHZdu8';
         }
 
         setCallData({
@@ -1004,6 +1022,18 @@ const CallPage: React.FC = () => {
 
   const breakoutEipInfo = getBreakoutEipInfo();
 
+  const agendaIssue =
+    callConfig?.issue ||
+    callConfig?.agendaIssue ||
+    matchingCall?.issue ||
+    matchingCall?.agendaIssue ||
+    parentCall?.issue ||
+    parentCall?.agendaIssue ||
+    null;
+
+  const getLinkedCallLabel = (call: typeof protocolCalls[number]) =>
+    `${call.name || callTypeNames[call.type as CallType] || call.type}${isOneOffCall(call.type) ? '' : ` #${call.number}`}`;
+
   const parseVTTTranscript = (text: string) => {
     const lines = text.split('\n');
     const entries: Array<{ timestamp: string; speaker: string; text: string }> = [];
@@ -1090,22 +1120,34 @@ const CallPage: React.FC = () => {
         {/* Video Player */}
         <div className={isWorkspaceView ? 'min-h-0 flex-1' : ''}>
           <div className={`relative overflow-hidden rounded-lg ${isWorkspaceView ? 'h-full min-h-0' : 'aspect-video'}`}>
-            <YouTube
-              videoId={extractYouTubeId(callData.videoUrl!)}
-              className="absolute inset-0 h-full w-full"
-              iframeClassName="w-full h-full rounded-lg"
-              onReady={onPlayerReady}
-              onStateChange={onPlayerStateChange}
-              opts={{
-                width: '100%',
-                height: '100%',
-                playerVars: {
-                  autoplay: 0,
-                  modestbranding: 1,
-                  rel: 0
-                }
-              }}
-            />
+            {callData.videoUrl ? (
+              <YouTube
+                videoId={extractYouTubeId(callData.videoUrl)}
+                className="absolute inset-0 h-full w-full"
+                iframeClassName="w-full h-full rounded-lg"
+                onReady={onPlayerReady}
+                onStateChange={onPlayerStateChange}
+                opts={{
+                  width: '100%',
+                  height: '100%',
+                  playerVars: {
+                    autoplay: 0,
+                    modestbranding: 1,
+                    rel: 0
+                  }
+                }}
+              />
+            ) : (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-6 text-center dark:border-slate-600 dark:bg-slate-900/40">
+                <svg className="h-10 w-10 text-slate-400 dark:text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14m-6 4h4a2 2 0 002-2V8a2 2 0 00-2-2H9a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+                <div>
+                  <p className="text-sm font-medium text-slate-700 dark:text-slate-200">Recording not uploaded yet</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Transcript, chat, and summary can still be published before the YouTube upload lands.</p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -1120,20 +1162,35 @@ const CallPage: React.FC = () => {
               <span className="text-slate-500 dark:text-slate-400">📅</span>
               <span className="text-slate-700 dark:text-slate-200 font-medium">{callData.date}</span>
             </div>
-            {callConfig?.issue && (
+            {agendaIssue && (
               <>
                 <span className="text-slate-300 dark:text-slate-600 hidden sm:inline">|</span>
                 <div className="flex items-center gap-1.5">
                   <span className="text-slate-500 dark:text-slate-400">📌</span>
                   <span className="text-slate-600 dark:text-slate-300">Agenda:</span>
                   <a
-                    href={`https://github.com/ethereum/pm/issues/${callConfig.issue}`}
+                    href={`https://github.com/ethereum/pm/issues/${agendaIssue}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200 font-medium underline decoration-1 underline-offset-2"
                   >
-                    #{callConfig.issue}
+                    #{agendaIssue}
                   </a>
+                </div>
+              </>
+            )}
+            {parentCall && (
+              <>
+                <span className="text-slate-300 dark:text-slate-600 hidden sm:inline">|</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-slate-500 dark:text-slate-400">-&gt;</span>
+                  <span className="text-slate-600 dark:text-slate-300">Part of:</span>
+                  <Link
+                    to={`/calls/${parentCall.path}`}
+                    className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200 font-medium underline decoration-1 underline-offset-2"
+                  >
+                    {getLinkedCallLabel(parentCall)}
+                  </Link>
                 </div>
               </>
             )}
@@ -1158,30 +1215,30 @@ const CallPage: React.FC = () => {
               </>
             )}
             <span className="flex-1" />
-            <button
-              type="button"
-              onClick={() => setIsVideoExpanded(current => !current)}
-              className="hidden lg:inline-flex items-center gap-1.5 flex-shrink-0 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1 text-xs font-normal text-slate-500 dark:text-slate-400 transition-colors hover:bg-slate-50 hover:text-slate-700 dark:hover:bg-slate-700 dark:hover:text-slate-300 cursor-pointer"
-            >
-              {isExpandedVideo ? (
-                <svg className="h-4.5 w-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.25} strokeLinecap="round" strokeLinejoin="round">
-                  {/* Arrows pointing inward — hooks at inner points */}
-                  <path d="M4 4l5 5M9 5.5v3.5H5.5" />
-                  <path d="M20 4l-5 5M15 5.5v3.5h3.5" />
-                  <path d="M4 20l5-5M9 18.5v-3.5H5.5" />
-                  <path d="M20 20l-5-5M15 18.5v-3.5h3.5" />
-                </svg>
-              ) : (
-                <svg className="h-4.5 w-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.25} strokeLinecap="round" strokeLinejoin="round">
-                  {/* Arrows pointing outward — hooks at corners */}
-                  <path d="M9 9L4 4M4 8V4h4" />
-                  <path d="M15 9l5-5M20 8V4h-4" />
-                  <path d="M9 15l-5 5M4 16v4h4" />
-                  <path d="M15 15l5 5M20 16v4h-4" />
-                </svg>
-              )}
-              {isExpandedVideo ? 'Exit Theater' : 'Theater Mode'}
-            </button>
+            {callData.videoUrl && (
+              <button
+                type="button"
+                onClick={() => setIsVideoExpanded(current => !current)}
+                className="hidden lg:inline-flex items-center gap-1.5 flex-shrink-0 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1 text-xs font-normal text-slate-500 dark:text-slate-400 transition-colors hover:bg-slate-50 hover:text-slate-700 dark:hover:bg-slate-700 dark:hover:text-slate-300 cursor-pointer"
+              >
+                {isExpandedVideo ? (
+                  <svg className="h-4.5 w-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.25} strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M4 4l5 5M9 5.5v3.5H5.5" />
+                    <path d="M20 4l-5 5M15 5.5v3.5h3.5" />
+                    <path d="M4 20l5-5M9 18.5v-3.5H5.5" />
+                    <path d="M20 20l-5-5M15 18.5v-3.5h3.5" />
+                  </svg>
+                ) : (
+                  <svg className="h-4.5 w-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.25} strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M9 9L4 4M4 8V4h4" />
+                    <path d="M15 9l5-5M20 8V4h-4" />
+                    <path d="M9 15l-5 5M4 16v4h4" />
+                    <path d="M15 15l5 5M20 16v4h-4" />
+                  </svg>
+                )}
+                {isExpandedVideo ? 'Exit Theater' : 'Theater Mode'}
+              </button>
+            )}
           </div>
           {isExpandedVideo && (prevCall || nextCall) && (
             <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-700 flex justify-between items-center gap-2">
@@ -1338,6 +1395,41 @@ const CallPage: React.FC = () => {
     </div>
   );
 
+  const renderBreakoutCard = () => breakoutChildren.length > 0 && (
+    <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow">
+      <div className="flex items-center justify-between gap-3 mb-3">
+        <div>
+          <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Breakout Rooms</h2>
+          <p className="text-xs text-slate-500 dark:text-slate-400">Sub-calls that split off from this meeting.</p>
+        </div>
+        <span className="text-xs text-slate-500 dark:text-slate-400">
+          {breakoutChildren.length} breakout{breakoutChildren.length === 1 ? '' : 's'}
+        </span>
+      </div>
+      <div className="space-y-2">
+        {breakoutChildren.map(call => (
+          <Link
+            key={call.path}
+            to={`/calls/${call.path}`}
+            className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 dark:border-slate-700 px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors"
+          >
+            <div className="min-w-0">
+              <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                {getLinkedCallLabel(call)}
+              </div>
+              <div className="text-xs text-slate-500 dark:text-slate-400">
+                {call.date}{call.issue || call.agendaIssue ? ` • agenda #${call.issue || call.agendaIssue}` : ''}
+              </div>
+            </div>
+            <div className="text-xs text-slate-500 dark:text-slate-400">
+              {call.type.toUpperCase()}
+            </div>
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100">
       {/* Compact Header */}
@@ -1429,9 +1521,13 @@ const CallPage: React.FC = () => {
       {/* Content */}
       <div className={layout.content}>
         <div className={layout.grid}>
-          {callData.videoUrl && (
-            <div className={`min-w-0 ${showSummaryInColumn ? 'lg:col-start-1 lg:row-start-1' : layout.videoSection}`}>
-              {renderVideoSection()}
+          <div className={`min-w-0 ${showSummaryInColumn ? 'lg:col-start-1 lg:row-start-1' : layout.videoSection}`}>
+            {renderVideoSection()}
+          </div>
+
+          {breakoutChildren.length > 0 && (
+            <div className="lg:col-span-2">
+              {renderBreakoutCard()}
             </div>
           )}
 

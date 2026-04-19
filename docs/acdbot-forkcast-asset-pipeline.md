@@ -72,11 +72,11 @@ Two scripts run sequentially via `sync-call-assets.yml` (scheduled cron). Both l
 
 ### Step 1: Sync call assets (`sync-call-assets.mjs`)
 
-1. **Fetches** `manifest.json` from `https://raw.githubusercontent.com/ethereum/pm/master/.github/ACDbot/artifacts/manifest.json`.
+1. **Fetches** `manifest.json` from PM artifacts. In CI this is driven by `PM_REPO=${github.repository_owner}/pm` and `PM_REF=master`, so forks sync from their matching PM fork instead of always pulling from `ethereum/pm`.
 2. **Maps** PM series names to Forkcast short codes (i.e. `glamsterdamrepricings` → `price`, `rpcstandards` → `rpc`). Core series like `acdc`, `acde`, `acdt` pass through unchanged. The full mapping is defined in `SERIES_TO_TYPE` in `sync-call-assets.mjs` — series not in `KNOWN_TYPES` are skipped with a console warning.
-3. **Filters** — only syncs calls that have a `videoUrl` AND at least one of `tldr`, `transcript`, or `transcript_corrected`.
+3. **Filters** — syncs calls that have at least one usable artifact: `chat`, `tldr`, `transcript`, or `transcript_corrected`.
 4. **Downloads** new assets to `forkcast/public/artifacts/{type}/{date}_{number}/`. Skips files that already exist locally unless `--force` is passed.
-5. **Generates `config.json`** for each call — stores the issue number, video URL, and sync offsets. For livestreamed types (`acdc`, `acde`, `acdt`), sync times start as `null` (manual sync required). For all others, they default to `"00:00:00"`.
+5. **Generates `config.json`** for each call — stores call metadata like issue numbers, parent relationships, optional video URLs, and sync offsets. For livestreamed types (`acdc`, `acde`, `acdt`), sync times start as `null` (manual sync required). For all others, they default to `"00:00:00"`.
 6. **Updates `src/data/protocol-calls.generated.json`** — the frontend's call index, sorted by type then date. This file is additive — entries are never pruned automatically, so removing a call requires a manual edit.
 
 ### Step 2: Extract key decisions (`extract-key-decisions.mjs`)
@@ -200,12 +200,24 @@ If the PM manifest already has calls for the series, they should sync down. If n
 
 ### A call is missing from Forkcast
 
-**Check the manifest first.** The sync script only pulls calls present in `manifest.json` with a `videoUrl` AND at least one text asset (TLDR, transcript, or corrected transcript). Common causes:
+**Check the manifest first.** The sync script only pulls calls present in `manifest.json` with at least one usable artifact (`chat`, `tldr`, `transcript`, or `transcript_corrected`). Common causes:
 
-1. **No `videoUrl` yet.** The video hasn't been uploaded to YouTube, or the manifest hasn't been regenerated after upload. Check `pm/.github/ACDbot/artifacts/manifest.json` for the call entry.
-2. **No text assets yet.** The PM pipeline hasn't completed processing. Check `pm/.github/ACDbot/artifacts/{series}/{date}_{number}/` for the expected files.
+1. **No artifacts yet.** The PM pipeline hasn't produced any publishable files. Check `pm/.github/ACDbot/artifacts/{series}/{date}_{number}/` for `chat.txt`, `transcript.vtt`, `transcript_corrected.vtt`, or `tldr.json`.
+2. **Manifest not regenerated.** The files exist in PM, but `manifest.json` has not been rebuilt yet.
 3. **Series not in `KNOWN_TYPES`.** If a new call series was added to PM but not to Forkcast's sync script, it will be skipped (with a console warning). Add it to `SERIES_TO_TYPE` and `KNOWN_TYPES` in `sync-call-assets.mjs`.
 4. **Series in `DENYLIST`.** If a series was temporarily blocked from syncing (e.g., during a bad data incident), check `DENYLIST` in `sync-call-assets.mjs` and remove the entry.
+
+### Manual breakout flow
+
+Breakout rooms are different from normal PM/Zoom pipeline calls:
+
+1. The raw breakout recording is captured locally by a designated participant.
+2. PM's local breakout workflow generates derived artifacts (`chat.txt`, `transcript.vtt`, `transcript_corrected.vtt`, `tldr.json`, `config.json`).
+3. Those derived artifacts are committed to PM.
+4. After the PM change lands on `master`, PM dispatches `pm-assets-updated` to Forkcast.
+5. Forkcast runs the existing sync workflow and picks the breakout up automatically.
+
+Forkcast does **not** ingest raw `.mp4` / `.m4a` breakout recordings directly.
 
 ### Forkcast shows a dead or wrong video link
 

@@ -11,8 +11,11 @@ import { fileURLToPath } from 'url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
 
-const MANIFEST_URL = 'https://raw.githubusercontent.com/ethereum/pm/master/.github/ACDbot/artifacts/manifest.json';
-const ASSETS_BASE_URL = 'https://raw.githubusercontent.com/ethereum/pm/master/.github/ACDbot/artifacts';
+const PM_REPO = process.env.PM_REPO || 'ethereum/pm';
+const PM_REF = process.env.PM_REF || 'master';
+const RAW_BASE_URL = `https://raw.githubusercontent.com/${PM_REPO}/${PM_REF}/.github/ACDbot/artifacts`;
+const MANIFEST_URL = `${RAW_BASE_URL}/manifest.json`;
+const ASSETS_BASE_URL = RAW_BASE_URL;
 const LOCAL_ASSETS_DIR = join(ROOT, 'public/artifacts');
 const DENYLIST = new Set([
   // Placeholder: 'series'
@@ -61,6 +64,9 @@ function normalizeManifest(manifest) {
           last_updated: call.updated || call.date || null,
           // Metadata for config.json generation
           issue: call.issue || null,
+          agendaIssue: call.agendaIssue || null,
+          name: call.name || null,
+          parent: call.parent || null,
           videoUrl: call.videoUrl || null
         };
       }
@@ -78,6 +84,9 @@ function generateConfig(callData, localType) {
   const needsManualSync = LIVESTREAMED_TYPES.has(localType);
   return {
     issue: callData.issue,
+    agendaIssue: callData.agendaIssue,
+    name: callData.name,
+    parent: callData.parent,
     videoUrl: callData.videoUrl,
     sync: {
       transcriptStartTime: needsManualSync ? null : '00:00:00',
@@ -128,20 +137,30 @@ async function syncCall(remoteSeries, localType, callId, callData, force = false
 
   // Handle config.json
   const configPath = join(localDir, 'config.json');
+  const desiredConfig = generateConfig(callData, localType);
   if (!existsSync(configPath)) {
     // Create new config from manifest data
     console.log('  Generating config.json');
-    const config = generateConfig(callData, localType);
-    writeFileSync(configPath, JSON.stringify(config, null, 2));
+    writeFileSync(configPath, JSON.stringify(desiredConfig, null, 2));
     changesMade = true;
-  } else if (callData.videoUrl) {
-    // Update videoUrl if existing config has null and manifest has a value
+  } else {
+    // Merge manifest metadata into existing config while preserving local sync offsets
     try {
       const existingConfig = JSON.parse(readFileSync(configPath, 'utf-8'));
-      if (existingConfig.videoUrl !== callData.videoUrl) {
-        console.log('  Updating config.json videoUrl');
-        existingConfig.videoUrl = callData.videoUrl;
-        writeFileSync(configPath, JSON.stringify(existingConfig, null, 2));
+      const mergedConfig = {
+        ...existingConfig,
+        sync: existingConfig.sync || desiredConfig.sync,
+      };
+
+      for (const field of ['issue', 'agendaIssue', 'name', 'parent', 'videoUrl']) {
+        if (desiredConfig[field] !== undefined && desiredConfig[field] !== null) {
+          mergedConfig[field] = desiredConfig[field];
+        }
+      }
+
+      if (JSON.stringify(existingConfig) !== JSON.stringify(mergedConfig)) {
+        console.log('  Updating config.json metadata');
+        writeFileSync(configPath, JSON.stringify(mergedConfig, null, 2));
         changesMade = true;
       }
     } catch (e) {
@@ -195,10 +214,9 @@ function generateProtocolCallsJson(callsBySeries) {
 
     for (const [callId, callData] of Object.entries(seriesCalls)) {
       // Same filters as asset syncing
-      if (!callData.has_tldr && !callData.has_transcript && !callData.has_corrected_transcript) {
+      if (!callData.has_tldr && !callData.has_transcript && !callData.has_corrected_transcript && !callData.has_chat) {
         continue;
       }
-      if (!callData.videoUrl) continue;
 
       // Parse callId: "2026-02-05_174" -> date "2026-02-05", number "174"
       const sepIndex = callId.lastIndexOf('_');
@@ -211,9 +229,15 @@ function generateProtocolCallsJson(callsBySeries) {
       if (!existingPaths.has(path)) {
         const entry = { type: localType, date, number, path };
         if (callData.issue) entry.issue = callData.issue;
+        if (callData.agendaIssue) entry.agendaIssue = callData.agendaIssue;
+        if (callData.name) entry.name = callData.name;
+        if (callData.parent?.series && callData.parent?.number != null) {
+          entry.parentPath = `${getLocalType(callData.parent.series)}/${String(callData.parent.number).padStart(3, '0')}`;
+          if (callData.parent.issue) entry.parentIssue = callData.parent.issue;
+        }
 
         // For one-off calls, read local tldr.json to extract the meeting name
-        if (isOneOff) {
+        if (isOneOff && !entry.name) {
           const tldrPath = join(LOCAL_ASSETS_DIR, localType, callId, 'tldr.json');
           if (existsSync(tldrPath)) {
             try {
@@ -244,15 +268,26 @@ function generateProtocolCallsJson(callsBySeries) {
       if (sepIndex === -1) continue;
       const number = callId.substring(sepIndex + 1).padStart(3, '0');
       const path = `${localType}/${number}`;
-      if (callData.issue) manifestByPath.set(path, callData.issue);
+      manifestByPath.set(path, {
+        issue: callData.issue || null,
+        agendaIssue: callData.agendaIssue || null,
+        name: callData.name || null,
+        parentPath: callData.parent?.series && callData.parent?.number != null
+          ? `${getLocalType(callData.parent.series)}/${String(callData.parent.number).padStart(3, '0')}`
+          : null,
+        parentIssue: callData.parent?.issue || null,
+      });
     }
   }
   for (const entry of existing) {
-    if (entry.issue) continue;
-    const issue = manifestByPath.get(entry.path);
-    if (issue) {
-      entry.issue = issue;
-    } else {
+    const manifestEntry = manifestByPath.get(entry.path);
+    if (manifestEntry) {
+      if (manifestEntry.issue) entry.issue = manifestEntry.issue;
+      if (manifestEntry.agendaIssue) entry.agendaIssue = manifestEntry.agendaIssue;
+      if (manifestEntry.name) entry.name = manifestEntry.name;
+      if (manifestEntry.parentPath) entry.parentPath = manifestEntry.parentPath;
+      if (manifestEntry.parentIssue) entry.parentIssue = manifestEntry.parentIssue;
+    } else if (!entry.issue) {
       // Fall back to local config.json — try both padded and unpadded number forms
       const unpadded = entry.number.replace(/^0+/, '') || '0';
       const candidates = [
@@ -263,7 +298,14 @@ function generateProtocolCallsJson(callsBySeries) {
         if (existsSync(configPath)) {
           try {
             const config = JSON.parse(readFileSync(configPath, 'utf-8'));
-            if (config.issue) { entry.issue = config.issue; break; }
+            if (config.issue) entry.issue = config.issue;
+            if (config.agendaIssue) entry.agendaIssue = config.agendaIssue;
+            if (config.name) entry.name = config.name;
+            if (config.parent?.series && config.parent?.number != null) {
+              entry.parentPath = `${getLocalType(config.parent.series)}/${String(config.parent.number).padStart(3, '0')}`;
+              if (config.parent.issue) entry.parentIssue = config.parent.issue;
+            }
+            break;
           } catch (_) {}
         }
       }
@@ -293,12 +335,7 @@ async function main() {
 
     for (const [callId, callData] of Object.entries(calls)) {
       // Skip if no useful assets
-      if (!callData.has_tldr && !callData.has_transcript && !callData.has_corrected_transcript) {
-        continue;
-      }
-
-      // Skip calls without a video URL
-      if (!callData.videoUrl) {
+      if (!callData.has_tldr && !callData.has_transcript && !callData.has_corrected_transcript && !callData.has_chat) {
         continue;
       }
 
