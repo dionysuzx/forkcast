@@ -64,7 +64,6 @@ function normalizeManifest(manifest) {
           last_updated: call.updated || call.date || null,
           // Metadata for config.json generation
           issue: call.issue || null,
-          agendaIssue: call.agendaIssue || null,
           name: call.name || null,
           parent: call.parent || null,
           videoUrl: call.videoUrl || null
@@ -80,11 +79,24 @@ function normalizeManifest(manifest) {
 
 const LIVESTREAMED_TYPES = new Set(['acdc', 'acde', 'acdt']);
 
+// Pull the Call-shaped metadata (issue, name, parentPath) out of either a manifest entry
+// or a local config.json. Returns only the fields that are populated, so it composes via
+// Object.assign / spread without clobbering existing values with undefined.
+function callMetadataFields(source) {
+  const fields = {};
+  if (source.issue) fields.issue = source.issue;
+  if (source.name) fields.name = source.name;
+  const parent = source.parent;
+  if (parent?.series && parent?.number != null) {
+    fields.parentPath = `${getLocalType(parent.series)}/${String(parent.number).padStart(3, '0')}`;
+  }
+  return fields;
+}
+
 function generateConfig(callData, localType) {
   const needsManualSync = LIVESTREAMED_TYPES.has(localType);
   return {
     issue: callData.issue,
-    agendaIssue: callData.agendaIssue,
     name: callData.name,
     parent: callData.parent,
     videoUrl: callData.videoUrl,
@@ -152,7 +164,7 @@ async function syncCall(remoteSeries, localType, callId, callData, force = false
         sync: existingConfig.sync || desiredConfig.sync,
       };
 
-      for (const field of ['issue', 'agendaIssue', 'name', 'parent', 'videoUrl']) {
+      for (const field of ['issue', 'name', 'parent', 'videoUrl']) {
         if (desiredConfig[field] !== undefined && desiredConfig[field] !== null) {
           mergedConfig[field] = desiredConfig[field];
         }
@@ -227,14 +239,7 @@ function generateProtocolCallsJson(callsBySeries) {
       const path = `${localType}/${number}`;
 
       if (!existingPaths.has(path)) {
-        const entry = { type: localType, date, number, path };
-        if (callData.issue) entry.issue = callData.issue;
-        if (callData.agendaIssue) entry.agendaIssue = callData.agendaIssue;
-        if (callData.name) entry.name = callData.name;
-        if (callData.parent?.series && callData.parent?.number != null) {
-          entry.parentPath = `${getLocalType(callData.parent.series)}/${String(callData.parent.number).padStart(3, '0')}`;
-          if (callData.parent.issue) entry.parentIssue = callData.parent.issue;
-        }
+        const entry = { type: localType, date, number, path, ...callMetadataFields(callData) };
 
         // For one-off calls, read local tldr.json to extract the meeting name
         if (isOneOff && !entry.name) {
@@ -259,7 +264,7 @@ function generateProtocolCallsJson(callsBySeries) {
     }
   }
 
-  // Backfill issue numbers from manifest data
+  // Backfill metadata onto pre-existing entries — manifest takes precedence over local config.
   const manifestByPath = new Map();
   for (const [series, seriesCalls] of Object.entries(callsBySeries)) {
     const localType = getLocalType(series);
@@ -267,48 +272,29 @@ function generateProtocolCallsJson(callsBySeries) {
       const sepIndex = callId.lastIndexOf('_');
       if (sepIndex === -1) continue;
       const number = callId.substring(sepIndex + 1).padStart(3, '0');
-      const path = `${localType}/${number}`;
-      manifestByPath.set(path, {
-        issue: callData.issue || null,
-        agendaIssue: callData.agendaIssue || null,
-        name: callData.name || null,
-        parentPath: callData.parent?.series && callData.parent?.number != null
-          ? `${getLocalType(callData.parent.series)}/${String(callData.parent.number).padStart(3, '0')}`
-          : null,
-        parentIssue: callData.parent?.issue || null,
-      });
+      manifestByPath.set(`${localType}/${number}`, callMetadataFields(callData));
     }
   }
   for (const entry of existing) {
-    const manifestEntry = manifestByPath.get(entry.path);
-    if (manifestEntry) {
-      if (manifestEntry.issue) entry.issue = manifestEntry.issue;
-      if (manifestEntry.agendaIssue) entry.agendaIssue = manifestEntry.agendaIssue;
-      if (manifestEntry.name) entry.name = manifestEntry.name;
-      if (manifestEntry.parentPath) entry.parentPath = manifestEntry.parentPath;
-      if (manifestEntry.parentIssue) entry.parentIssue = manifestEntry.parentIssue;
-    } else if (!entry.issue) {
-      // Fall back to local config.json — try both padded and unpadded number forms
-      const unpadded = entry.number.replace(/^0+/, '') || '0';
-      const candidates = [
-        join(LOCAL_ASSETS_DIR, entry.type, `${entry.date}_${entry.number}`, 'config.json'),
-        join(LOCAL_ASSETS_DIR, entry.type, `${entry.date}_${unpadded}`, 'config.json'),
-      ];
-      for (const configPath of candidates) {
-        if (existsSync(configPath)) {
-          try {
-            const config = JSON.parse(readFileSync(configPath, 'utf-8'));
-            if (config.issue) entry.issue = config.issue;
-            if (config.agendaIssue) entry.agendaIssue = config.agendaIssue;
-            if (config.name) entry.name = config.name;
-            if (config.parent?.series && config.parent?.number != null) {
-              entry.parentPath = `${getLocalType(config.parent.series)}/${String(config.parent.number).padStart(3, '0')}`;
-              if (config.parent.issue) entry.parentIssue = config.parent.issue;
-            }
-            break;
-          } catch (_) {}
-        }
-      }
+    const fromManifest = manifestByPath.get(entry.path);
+    if (fromManifest) {
+      Object.assign(entry, fromManifest);
+      continue;
+    }
+    if (entry.issue) continue;
+
+    // Fall back to local config.json — try both padded and unpadded number forms
+    const unpadded = entry.number.replace(/^0+/, '') || '0';
+    const candidates = [
+      join(LOCAL_ASSETS_DIR, entry.type, `${entry.date}_${entry.number}`, 'config.json'),
+      join(LOCAL_ASSETS_DIR, entry.type, `${entry.date}_${unpadded}`, 'config.json'),
+    ];
+    for (const configPath of candidates) {
+      if (!existsSync(configPath)) continue;
+      try {
+        Object.assign(entry, callMetadataFields(JSON.parse(readFileSync(configPath, 'utf-8'))));
+        break;
+      } catch (_) {}
     }
   }
 

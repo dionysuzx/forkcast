@@ -43,7 +43,6 @@ interface CallConfig {
   name?: string;
   videoUrl?: string;
   issue?: number;
-  agendaIssue?: number;
   meetingTitle?: string;
   parent?: {
     series: string;
@@ -1022,14 +1021,7 @@ const CallPage: React.FC = () => {
 
   const breakoutEipInfo = getBreakoutEipInfo();
 
-  const agendaIssue =
-    callConfig?.issue ||
-    callConfig?.agendaIssue ||
-    matchingCall?.issue ||
-    matchingCall?.agendaIssue ||
-    parentCall?.issue ||
-    parentCall?.agendaIssue ||
-    null;
+  const agendaIssue = callConfig?.issue ?? matchingCall?.issue ?? parentCall?.issue ?? null;
 
   const getLinkedCallLabel = (call: typeof protocolCalls[number]) =>
     `${call.name || callTypeNames[call.type as CallType] || call.type}${isOneOffCall(call.type) ? '' : ` #${call.number}`}`;
@@ -1418,7 +1410,7 @@ const CallPage: React.FC = () => {
                 {getLinkedCallLabel(call)}
               </div>
               <div className="text-xs text-slate-500 dark:text-slate-400">
-                {call.date}{call.issue || call.agendaIssue ? ` • agenda #${call.issue || call.agendaIssue}` : ''}
+                {call.date}
               </div>
             </div>
             <div className="text-xs text-slate-500 dark:text-slate-400">

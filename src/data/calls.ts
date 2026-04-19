@@ -10,9 +10,7 @@ export interface Call {
   path: string;
   name?: string;
   issue?: number;
-  agendaIssue?: number;
   parentPath?: string;
-  parentIssue?: number;
 }
 
 // Full names for call types (used in tooltips)
