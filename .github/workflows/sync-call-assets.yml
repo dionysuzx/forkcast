@@ -18,6 +18,9 @@ jobs:
     permissions:
       contents: write
       actions: write
+    env:
+      PM_REPO: ${{ github.repository_owner }}/pm
+      PM_REF: master
 
     steps:
       - name: Checkout forkcast
