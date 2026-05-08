@@ -86,15 +86,23 @@ const CallPage: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // Redirect issue-number URLs (e.g., /calls/1954) to the canonical path
+  // Redirect issue-number URLs (e.g., /calls/1954) to the canonical path,
+  // and call-type URLs without a number (e.g., /calls/acde) to the filtered index
   const normalizedPath = callPath?.replace(/\/+$/, '');
   useEffect(() => {
-    if (normalizedPath && !normalizedPath.includes('/') && /^\d+$/.test(normalizedPath)) {
+    if (!normalizedPath || normalizedPath.includes('/')) return;
+
+    if (/^\d+$/.test(normalizedPath)) {
       const issueNum = parseInt(normalizedPath);
       const byIssue = protocolCalls.find(c => c.issue === issueNum);
       if (byIssue) {
         navigate(`/calls/${byIssue.path}`, { replace: true });
       }
+      return;
+    }
+
+    if (protocolCalls.some(c => c.type === normalizedPath)) {
+      navigate(`/calls?filter=${normalizedPath}`, { replace: true });
     }
   }, [normalizedPath, navigate]);
 
@@ -396,8 +404,11 @@ const CallPage: React.FC = () => {
         return;
       }
 
-      // Issue-number URLs are handled by the redirect effect
-      if (normalizedPath && !normalizedPath.includes('/') && /^\d+$/.test(normalizedPath)) return;
+      // Issue-number and bare call-type URLs are handled by the redirect effect
+      if (normalizedPath && !normalizedPath.includes('/') && (
+        /^\d+$/.test(normalizedPath) ||
+        protocolCalls.some(c => c.type === normalizedPath)
+      )) return;
 
       try {
         // Parse the call path (e.g., "acdc/154")
