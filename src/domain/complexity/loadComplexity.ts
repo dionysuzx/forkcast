@@ -12,17 +12,31 @@ interface GitHubFileEntry {
   readonly name: string;
 }
 
-let snapshotPromise: Promise<ComplexitySnapshot> | null = null;
+let cachedSnapshot: ComplexitySnapshot | null = null;
+let inflightLoad: Promise<ComplexitySnapshot> | null = null;
+
+export function getCachedComplexitySnapshot(): ComplexitySnapshot | null {
+  return cachedSnapshot;
+}
 
 export function loadComplexitySnapshot(): Promise<ComplexitySnapshot> {
-  if (!snapshotPromise) {
-    snapshotPromise = fetchComplexitySnapshot();
-  }
-  return snapshotPromise;
+  if (cachedSnapshot) return Promise.resolve(cachedSnapshot);
+  if (inflightLoad) return inflightLoad;
+
+  inflightLoad = fetchComplexitySnapshot()
+    .then((snapshot) => {
+      cachedSnapshot = snapshot;
+      return snapshot;
+    })
+    .finally(() => {
+      inflightLoad = null;
+    });
+
+  return inflightLoad;
 }
 
 export function invalidateComplexitySnapshot(): void {
-  snapshotPromise = null;
+  cachedSnapshot = null;
 }
 
 async function fetchComplexitySnapshot(): Promise<ComplexitySnapshot> {

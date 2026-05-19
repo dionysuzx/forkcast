@@ -4,6 +4,7 @@ import {
   type ComplexitySnapshot,
 } from './complexity';
 import {
+  getCachedComplexitySnapshot,
   invalidateComplexitySnapshot,
   loadComplexitySnapshot,
 } from './loadComplexity';
@@ -16,8 +17,10 @@ interface UseComplexityDataResult {
 }
 
 export function useComplexityData(): UseComplexityDataResult {
-  const [snapshot, setSnapshot] = useState<ComplexitySnapshot>(EMPTY_COMPLEXITY_SNAPSHOT);
-  const [loading, setLoading] = useState(true);
+  const [snapshot, setSnapshot] = useState<ComplexitySnapshot>(
+    () => getCachedComplexitySnapshot() ?? EMPTY_COMPLEXITY_SNAPSHOT
+  );
+  const [loading, setLoading] = useState(() => getCachedComplexitySnapshot() === null);
   const [error, setError] = useState<Error | null>(null);
 
   const load = useCallback(async () => {
@@ -33,6 +36,7 @@ export function useComplexityData(): UseComplexityDataResult {
   }, []);
 
   useEffect(() => {
+    if (getCachedComplexitySnapshot()) return;
     void load();
   }, [load]);
 
