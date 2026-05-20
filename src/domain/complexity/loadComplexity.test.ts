@@ -81,4 +81,30 @@ describe('loadComplexitySnapshot', () => {
     expect(a).toBe(b);
     expect(directoryCalls).toBe(1);
   });
+
+  it('keeps an in-flight load when invalidated so a fresh call joins the current request', async () => {
+    let directoryCalls = 0;
+    let releaseDirectory!: (response: Response) => void;
+    const directoryGate = new Promise<Response>((resolve) => {
+      releaseDirectory = resolve;
+    });
+
+    installFetch(async (url) => {
+      if (url.includes('contents/complexity_assessments')) {
+        directoryCalls += 1;
+        return directoryGate;
+      }
+      return respondText('**Total: 5**');
+    });
+
+    const first = loadComplexitySnapshot();
+    invalidateComplexitySnapshot();
+    const second = loadComplexitySnapshot();
+
+    releaseDirectory(respondJson([{ name: 'EIP-1.md' }]));
+
+    const [a, b] = await Promise.all([first, second]);
+    expect(a).toBe(b);
+    expect(directoryCalls).toBe(1);
+  });
 });
