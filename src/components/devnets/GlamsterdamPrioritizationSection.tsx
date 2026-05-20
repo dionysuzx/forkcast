@@ -1,9 +1,9 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { eipsData } from '../../data/eips';
-import { useComplexityData, getComplexityForEip } from '../../domain/complexity/useComplexityData';
-import { getComplexityTierColor, getComplexityTierEmoji } from '../../domain/complexity/complexity';
-import type { EipComplexity } from '../../domain/complexity/types';
+import { useComplexityData } from '../../domain/complexity/useComplexityData';
+import { findComplexityByEip, type EipComplexity } from '../../domain/complexity/complexity';
+import { tierBadgeClasses, tierEmoji } from '../../domain/complexity/tierStyle';
 import { usePrioritizationData } from '../../hooks/usePrioritizationData';
 import { getScoreColor } from '../../utils/prioritization';
 import {
@@ -130,7 +130,7 @@ const GlamsterdamPrioritizationSection: React.FC = () => {
   const [stageFilter, setStageFilter] = useState<string>('all');
   const [layerFilter, setLayerFilter] = useState<'all' | 'EL' | 'CL'>('all');
   const [filtersModalOpen, setFiltersModalOpen] = useState(false);
-  const { complexityMap, loading: complexityLoading, refetch } = useComplexityData();
+  const { snapshot: complexitySnapshot, loading: complexityLoading, refetch } = useComplexityData();
 
   useEffect(() => {
     if (filtersModalOpen) {
@@ -183,7 +183,7 @@ const GlamsterdamPrioritizationSection: React.FC = () => {
     );
 
     return glamsterdamEips.map((eip): CombinedEipData => {
-      const complexity = getComplexityForEip(complexityMap, eip.id);
+      const complexity = findComplexityByEip(complexitySnapshot, eip.id);
       const priority = priorityAggregates.find((p) => p.eipId === eip.id) || null;
       const stage = getInclusionStage(eip, 'glamsterdam');
       const devnets = devnetMap.get(eip.id) || [];
@@ -191,7 +191,7 @@ const GlamsterdamPrioritizationSection: React.FC = () => {
       const testCount = getExecutionSpecTestCountForEip(eip.id);
       return { eipId: eip.id, title: getLaymanTitle(eip), stage, complexity, priority, layer, devnets, testCount };
     });
-  }, [complexityMap, priorityAggregates, devnetMap]);
+  }, [complexitySnapshot, priorityAggregates, devnetMap]);
 
   const filteredData = useMemo(() => {
     let result = combinedData;
@@ -506,8 +506,8 @@ const GlamsterdamPrioritizationSection: React.FC = () => {
                   {item.complexity && (
                     <div className="flex items-center gap-1">
                       <span className="text-slate-400 dark:text-slate-400">Complexity:</span>
-                      <span className={`px-1.5 py-0.5 rounded ${getComplexityTierColor(item.complexity.tier)}`}>
-                        {getComplexityTierEmoji(item.complexity.tier)} {item.complexity.totalScore}
+                      <span className={`px-1.5 py-0.5 rounded ${tierBadgeClasses(item.complexity.tier)}`}>
+                        {tierEmoji(item.complexity.tier)} {item.complexity.totalScore}
                       </span>
                     </div>
                   )}
@@ -684,8 +684,8 @@ const GlamsterdamPrioritizationSection: React.FC = () => {
                       </td>
                       <td className="px-4 py-3 text-center">
                         {item.complexity ? (
-                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded ${getComplexityTierColor(item.complexity.tier)}`}>
-                            {getComplexityTierEmoji(item.complexity.tier)} {item.complexity.totalScore}
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded ${tierBadgeClasses(item.complexity.tier)}`}>
+                            {tierEmoji(item.complexity.tier)} {item.complexity.totalScore}
                           </span>
                         ) : (
                           <span className="text-xs text-slate-400 dark:text-slate-400">&mdash;</span>
