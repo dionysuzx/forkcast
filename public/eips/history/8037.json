@@ -2,6 +2,14 @@
   "eipId": 8037,
   "commits": [
     {
+      "sha": "dfb77c2aa4a3d863e07c5f08f086a855e49345e9",
+      "date": "2026-06-08T09:05:49Z",
+      "message": "Update EIP-8037: remove the callcode for account creation cases",
+      "author": "rjl493456442",
+      "prNumber": null,
+      "patch": "@@ -45,7 +45,7 @@ Upon activation of this EIP, the following parameters of the gas model are updat\n |---|---|---|---|---|\n | `GAS_CREATE` | 32,000 | `STATE_BYTES_PER_NEW_ACCOUNT x CPSB` | `CREATE_ACCESS` | `CREATE`, `CREATE2` |\n | `GAS_CODE_DEPOSIT` | 200/byte | `CPSB` per byte | `6 × ceil(len/32)` (hash cost) | `CREATE`, `CREATE2` |\n-| `GAS_NEW_ACCOUNT` | 25,000 | `STATE_BYTES_PER_NEW_ACCOUNT x CPSB` | 0 | `CALL`, `CALLCODE`, `SELFDESTRUCT` |\n+| `GAS_NEW_ACCOUNT` | 25,000 | `STATE_BYTES_PER_NEW_ACCOUNT x CPSB` | 0 | `CALL`, `SELFDESTRUCT` |\n | `GAS_STORAGE_SET` | 20,000 | `STATE_BYTES_PER_STORAGE_SET x CPSB` | 0 | `SSTORE` |\n | `PER_EMPTY_ACCOUNT_COST` | 25,000 | `STATE_BYTES_PER_NEW_ACCOUNT x CPSB` | `ACCOUNT_WRITE` | EOA delegation |\n | `PER_AUTH_BASE_COST` | 12,500 | `STATE_BYTES_PER_AUTH_BASE x CPSB` | `REGULAR_PER_AUTH_BASE_COST` | EOA delegation |"
+    },
+    {
       "sha": "546b61a9f75c6ec508de408b4fdd6ee6f29731f3",
       "date": "2026-06-02T13:34:46Z",
       "message": "Update EIP-8037: fix typo in 8037",
