@@ -2,6 +2,13 @@
   "eipId": 8141,
   "commits": [
     {
+      "sha": "b6dde8df84e92d24a788ad8ea5e2c7f5efbab98c",
+      "date": "2026-07-07T19:26:06Z",
+      "message": "Update EIP-8141: Spec cleanup and clarifications",
+      "author": "morph-dev",
+      "prNumber": null
+    },
+    {
       "sha": "12cf15e3c7df7243ce10605defb71d4de22de052",
       "date": "2026-07-06T19:03:46Z",
       "message": "Update EIP-8141: 8141 nits",
