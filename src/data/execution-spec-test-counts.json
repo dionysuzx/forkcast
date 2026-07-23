@@ -1,11 +1,11 @@
 {
   "repo": "ethereum/execution-specs",
-  "fetchedAt": "2026-07-22T08:08:20.340651+00:00",
+  "fetchedAt": "2026-07-23T08:11:23.220619+00:00",
   "eips": {
     "2780": {
       "testFiles": 9,
-      "testFunctions": 42,
-      "testCases": 201,
+      "testFunctions": 49,
+      "testCases": 229,
       "branch": "forks/amsterdam",
       "directoryName": "eip2780_reduce_intrinsic_tx_gas"
     },
