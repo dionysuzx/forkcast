@@ -1,6 +1,6 @@
 {
   "id": 8347,
-  "title": "EIP-8347: Offline state migration to the PBT",
+  "title": "EIP-8347: Offline State Migration to the PBT",
   "status": "Draft",
   "description": "Convert state to the PBT off the consensus-critical path, distribute a verifiable snapshot, and swap the commitment at a single fork",
   "author": "Carlos Perez (@CPerezz), Maria Silva (@misilva73), Kevaundray Wedderburn (@kevaundray)",
