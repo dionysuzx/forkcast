@@ -2,6 +2,14 @@
   "eipId": 7843,
   "commits": [
     {
+      "sha": "115174e36f14c67a7cda1d54a37a4eae37885799",
+      "date": "2026-08-05T14:32:20Z",
+      "message": "Update EIP-7843: Move to Review",
+      "author": "Marchhill",
+      "prNumber": null,
+      "patch": "@@ -4,7 +4,7 @@ title: SLOTNUM opcode\n description: Opcode to get the current slot number\n author: Marc Harvey-Hill (@Marchhill)\n discussions-to: https://ethereum-magicians.org/t/eip-7843-slotnum-opcode/22234\n-status: Draft\n+status: Review\n type: Standards Track\n category: Core\n created: 2024-12-06"
+    },
+    {
       "sha": "c3bfd4ba41cf0fcbfe8c404f33ba89f5174971e0",
       "date": "2026-01-20T14:46:09Z",
       "message": "Update EIP-7843: Move to Draft",
