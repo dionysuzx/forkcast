@@ -2,6 +2,14 @@
   "eipId": 8136,
   "commits": [
     {
+      "sha": "72c7fe56093b471a06f4ec857ce7a9d3c0ddd587",
+      "date": "2026-08-11T16:53:31Z",
+      "message": "Update EIP-8136: Move to Review",
+      "author": "poojaranjan",
+      "prNumber": null,
+      "patch": "@@ -4,7 +4,7 @@ title: Cell-Level Deltas for Data Column Broadcast\n description: Optimization for disseminating only previously unseen cells to the network for PeerDAS.\n author: Marco Munizaga (@MarcoPolo) <git@marcopolo.io>, Daniel Knopik (@dknopik) <daniel@dknopik.de>, Sukun Tarachandani (@sukunrt) <sukunrt@gmail.com>\n discussions-to: https://ethereum-magicians.org/t/eip-8136-cell-level-deltas-for-data-column-broadcast/27675\n-status: Draft\n+status: Review\n type: Standards Track\n category: Networking\n created: 2025-01-23\n@@ -13,7 +13,7 @@ requires: 7594\n \n ## Abstract\n \n-Cell-Level Deltas for Data Column Broadcast optimizes PeerDAS (EIP-7594) by\n+Cell-Level Deltas for Data Column Broadcast optimizes PeerDAS ([EIP-7594](./eip-7594.md)) by\n allowing more efficient transfers of blob data columns across the network.\n Instead of having to exchange full data columns, peers exchange only the cells\n they need within a column. This becomes especially useful when the majority of\n@@ -38,15 +38,10 @@ The key words \"MUST\", \"MUST NOT\", \"REQUIRED\", \"SHALL\", \"SHALL NOT\", \"SHOULD\", \"S\n \n Cell-Level Deltas uses Gossipsub's Partial Messages Extension to\n exchange cell bitmaps and request/provide cells.\n-<!--TODO: link to final spec above: (https://github.com/libp2p/specs/pull/685)-->\n-\n-*Editor's Note*: Update the libp2p spec link to a proper commit once the PR is merged.\n \n In an effort to maintain a single source of truth, the specification is defined\n-in the ethereum/consensus-specs repo.\n-<!-- TODO: link to final spec: [ethereum/consensus-specs](https://github.com/ethereum/consensus-specs/pull/4558)-->\n+in the [ethereum/consensus-specs](https://github.com/ethereum/consensus-specs/tree/b3b06d939c3f7301d218bca7adc39eed5806d553/./) repo.\n \n-*Editor's Note*: Update the Consensus Spec link to a proper commit once the PR is merged.\n \n ## Rationale\n "
+    },
+    {
       "sha": "49beda901dcf3747ed4b91f853a333595fb2cbc4",
       "date": "2026-02-28T09:53:33Z",
       "message": "Add EIP: Cell-Level Deltas for Data Column Broadcast",
