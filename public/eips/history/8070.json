@@ -2,6 +2,14 @@
   "eipId": 8070,
   "commits": [
     {
+      "sha": "f516cef8b482bf123d554ee12ff5b421f5578d38",
+      "date": "2026-08-12T13:26:48Z",
+      "message": "Update EIP-8070: Clarify custodyColumns `null` behavior",
+      "author": "dknopik",
+      "prNumber": null,
+      "patch": "@@ -96,7 +96,7 @@ Request:\n - params:\n   1. `forkchoiceState`: `ForkchoiceStateV1`.\n   2. `payloadAttributes`: `Object|null` - Instance of `PayloadAttributesV4` or `null`.\n-  3. `custodyColumns`: `DATA|null` - 16-byte value interpreted as a bitarray of length `CELLS_PER_EXT_BLOB`, where a `1` at position `i` indicates the CL node has custody of column `i`. `null` if the CL does not provide custody services.\n+  3. `custodyColumns`: `DATA|null` - 16-byte value interpreted as a bitarray of length `CELLS_PER_EXT_BLOB`, where a `1` at position `i` indicates the CL node has custody of column `i`. `null` if the CL is unable to provide an update.\n - timeout: 8s\n \n Response:\n@@ -110,7 +110,7 @@ Specification:\n 3. For type 3 transactions pending in the blobpool:\n     1. If the custody set has expanded relative to the previously known set, the Execution client MUST issue new sampling requests for the delta columns. It SHOULD broadcast updated `NewPooledTransactionHashes` announcements reflecting the expanded available set when act as a sampler.\n     2. If the custody set has contracted, the Execution client MAY prune dropped cells from local storage, but only AFTER broadcasting an updated `NewPooledTransactionHashes` announcement with the reduced available set, to avoid peers perceiving availability fault.\n-4. The Execution client MUST treat a `custodyColumns` value identical to the current custody set as a no-op with respect to blobpool state, while still processing the rest of the forkchoice update normally.\n+4. The Execution client MUST treat a `custodyColumns` value identical to the current custody set or a `null` value as a no-op with respect to blobpool state, while still processing the rest of the forkchoice update normally.\n \n **Method `engine_getBlobsV4`**\n "
+    },
+    {
       "sha": "43c7af020f1641924bed60565fde86f6ad3469df",
       "date": "2026-08-05T01:50:53Z",
       "message": "Update EIP-8070: Move to Review",
