@@ -2,6 +2,14 @@
   "eipId": 8136,
   "commits": [
     {
+      "sha": "a5e98381530d26848d456c2d3eaca733b5e6df8a",
+      "date": "2026-08-19T13:33:45Z",
+      "message": "Update EIP-8136: add Aarsh Shah to authors (#12191)",
+      "author": "sukunrt",
+      "prNumber": 12191,
+      "patch": "@@ -2,7 +2,7 @@\n eip: 8136\n title: Cell-Level Deltas for Data Column Broadcast\n description: Optimization for disseminating only previously unseen cells to the network for PeerDAS.\n-author: Marco Munizaga (@MarcoPolo) <git@marcopolo.io>, Daniel Knopik (@dknopik) <daniel@dknopik.de>, Sukun Tarachandani (@sukunrt) <sukunrt@gmail.com>\n+author: Marco Munizaga (@MarcoPolo) <git@marcopolo.io>, Daniel Knopik (@dknopik) <daniel@dknopik.de>, Sukun Tarachandani (@sukunrt) <sukunrt@gmail.com>, Aarsh Shah (@aarshkshah1992) <aarshkshah1992@gmail.com>\n discussions-to: https://ethereum-magicians.org/t/eip-8136-cell-level-deltas-for-data-column-broadcast/27675\n status: Review\n type: Standards Track"
+    },
+    {
       "sha": "72c7fe56093b471a06f4ec857ce7a9d3c0ddd587",
       "date": "2026-08-11T16:53:31Z",
       "message": "Update EIP-8136: Move to Review",
