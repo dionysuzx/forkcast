@@ -2,6 +2,13 @@
   "eipId": 8025,
   "commits": [
     {
+      "sha": "ec5fdb982e101ed0262f68742429d230ca960ca3",
+      "date": "2026-08-19T23:05:37Z",
+      "message": "Update EIP-8025: Refresh execution layer section",
+      "author": "jsign",
+      "prNumber": null
+    },
+    {
       "sha": "d9468bf9c827847847b8ac9f129b3f26ed8e2365",
       "date": "2026-08-04T22:02:26Z",
       "message": "Update EIP-8025: Add author",

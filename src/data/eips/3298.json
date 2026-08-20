@@ -1,13 +1,20 @@
 {
   "id": 3298,
-  "title": "EIP-3298: Removal of refunds",
-  "status": "Stagnant",
-  "description": "",
-  "author": "Vitalik Buterin (@vbuterin), Martin Swende (@holiman)",
+  "title": "EIP-3298: Remove storage-clear refund and refund cap",
+  "status": "Draft",
+  "description": "Removes the SSTORE storage-clearing refund and the transaction refund cap, leaving only net-metered same-transaction write reversals",
+  "author": "Vitalik Buterin (@vbuterin), Martin Swende (@holiman), Jochem Brouwer (@jochem-brouwer)",
   "type": "Standards Track",
   "category": "Core",
   "createdDate": "2021-02-26",
   "discussionLink": "https://ethereum-magicians.org/t/eip-3298-removal-of-refunds/5430",
   "forkRelationships": [],
-  "tradeoffs": null
+  "tradeoffs": null,
+  "requires": [
+    2780,
+    3529,
+    7778,
+    8037,
+    8038
+  ]
 }
