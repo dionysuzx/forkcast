@@ -2,9 +2,9 @@
   "id": "glamsterdam-devnet-9",
   "title": "glamsterdam-devnet-9",
   "sourceUrl": "https://notes.ethereum.org/@ethpandaops/glamsterdam-devnet-9",
-  "scrapedAt": "2026-09-01T10:51:47.959Z",
+  "scrapedAt": "2026-09-01T20:20:56.286Z",
   "announcements": [
-    "glamsterdam-devnet-9 targets to launch **end of day 2026-09-01 genesis 12pm UTC**.",
+    "**Genesis 2026-09-01 15:00:00 UTC** (`MIN_GENESIS_TIME` 1788274800). **Gloas fork at epoch 225 — 2026-09-02 15:00:00 UTC**, 24 h after genesis.",
     "**Client teams - please get your trunk branches ready.** devnet-9 runs **trunk images**\n(`:master` / `:main` / `:unstable` / `:develop`)",
     "**Scope. No new EIPs.** Two goals, in order:\n\n1. **A clean Gloas fork transition** from a large pre-fork state that exists at genesis rather than being grown over days of block production. This is what the L2 teams asked for after Plataberget.\n2. **Non-finality testing** — drive the network below the 2/3 participation threshold, hold it in the inactivity leak, observe recovery."
   ],
@@ -167,12 +167,142 @@
     }
   ],
   "elClientSupport": {
-    "clients": [],
-    "matrix": []
+    "clients": [
+      "Geth",
+      "Besu",
+      "Reth",
+      "Nethermind",
+      "Erigon",
+      "Nimbus-EL",
+      "Ethrex"
+    ],
+    "matrix": [
+      {
+        "eipNumber": 0,
+        "label": "Trunk image",
+        "support": {
+          "Geth": "✅ `:master`",
+          "Besu": "✅ `:main`",
+          "Reth": "❌ pinned",
+          "Nethermind": "✅ `:master`",
+          "Erigon": "✅ `:main`",
+          "Nimbus-EL": "❌ pinned",
+          "Ethrex": ":hammer: `:main`"
+        }
+      },
+      {
+        "eipNumber": 8038,
+        "label": "Frozen 8038/2780 in the published image",
+        "support": {
+          "Geth": "supported",
+          "Besu": "supported",
+          "Reth": "supported",
+          "Nethermind": "supported",
+          "Erigon": "✅ `main-bbf97b6`",
+          "Nimbus-EL": "supported",
+          "Ethrex": "in_progress"
+        }
+      },
+      {
+        "eipNumber": 8070,
+        "label": "eth/72 (EIP-8070) on trunk",
+        "support": {
+          "Geth": "supported",
+          "Besu": "supported",
+          "Reth": "❌ not on `main`",
+          "Nethermind": "supported",
+          "Erigon": "supported",
+          "Nimbus-EL": "supported",
+          "Ethrex": "in_progress"
+        }
+      },
+      {
+        "eipNumber": 7610,
+        "label": "EIP-7610 removal",
+        "support": {
+          "Geth": "in_progress",
+          "Besu": "in_progress",
+          "Reth": "in_progress",
+          "Nethermind": "in_progress",
+          "Erigon": "in_progress",
+          "Nimbus-EL": "in_progress",
+          "Ethrex": "in_progress"
+        }
+      },
+      {
+        "eipNumber": 0,
+        "label": "Undecodable BAL → `INVALID` ([#869](https://github.com/ethereum/execution-apis/pull/869))",
+        "support": {
+          "Geth": "not_supported",
+          "Besu": "supported",
+          "Reth": "not_supported",
+          "Nethermind": ":grey_question:",
+          "Erigon": "not_supported",
+          "Nimbus-EL": ":grey_question:",
+          "Ethrex": "not_supported"
+        }
+      }
+    ]
   },
   "clClientSupport": {
-    "clients": [],
-    "matrix": []
+    "clients": [
+      "Lodestar",
+      "Lighthouse",
+      "Prysm",
+      "Teku",
+      "Nimbus",
+      "Grandine"
+    ],
+    "matrix": [
+      {
+        "eipNumber": 0,
+        "label": "Trunk image",
+        "support": {
+          "Lodestar": "✅ `:unstable`",
+          "Lighthouse": "✅ `:unstable`",
+          "Prysm": ":grey_question: `:develop`",
+          "Teku": "✅ `:master`",
+          "Nimbus": "✅ `:unstable`",
+          "Grandine": ":grey_question: `:develop`"
+        }
+      },
+      {
+        "eipNumber": 0,
+        "label": "`v1.7.0-alpha.14`",
+        "support": {
+          "Lodestar": "supported",
+          "Lighthouse": "supported",
+          "Prysm": "❌ alpha.12",
+          "Teku": "supported",
+          "Nimbus": "supported",
+          "Grandine": "supported"
+        }
+      },
+      {
+        "eipNumber": 5096,
+        "label": "`get_parent_payload_status` for a pre-Gloas parent ([#5096](https://github.com/ethereum/consensus-specs/issues/5096))",
+        "support": {
+          "Lodestar": "`FULL`",
+          "Lighthouse": "`PENDING`",
+          "Prysm": ":grey_question:",
+          "Teku": ":grey_question:",
+          "Nimbus": ":grey_question:",
+          "Grandine": ":grey_question:"
+        }
+      },
+      {
+        "eipNumber": 8261,
+        "label": "EIP-8261 gas-limit schedule",
+        "support": {
+          "Lodestar": ":grey_question:",
+          "Lighthouse": "not_supported",
+          "Prysm": ":grey_question:",
+          "Teku": "supported",
+          "Nimbus": "not_supported",
+          "Grandine": "not_supported"
+        }
+      }
+    ]
   },
   "specReferences": {
     "consensusSpecs": {
@@ -180,5 +310,6 @@
       "url": "https://github.com/ethereum/consensus-specs/releases/tag/v1.7.0-alpha.14"
     },
     "executionSpecs": null
-  }
+  },
+  "genesisTime": 1788278400
 }
