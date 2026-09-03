@@ -1,8 +1,9 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { eipsData } from '../../data/eips';
-import { useComplexityData, getComplexityForEip } from '../../domain/complexity/useComplexityData';
-import { getComplexityTierColor, getComplexityTierEmoji } from '../../domain/complexity/complexity';
+import { useComplexityData } from '../../domain/complexity/useComplexityData';
+import { findComplexityByEip } from '../../domain/complexity/complexity';
+import { tierBadgeClasses, tierEmoji } from '../../domain/complexity/tierStyle';
 import {
   getInclusionStage,
   getInclusionStageSortRank,
@@ -34,7 +35,7 @@ const TestComplexityTab: React.FC = () => {
   const [expandedEip, setExpandedEip] = useState<number | null>(null);
   const [filtersModalOpen, setFiltersModalOpen] = useState(false);
 
-  const { complexityMap, loading, error, refetch } = useComplexityData();
+  const { snapshot: complexitySnapshot, loading, error, refetch } = useComplexityData();
 
   // Lock body scroll when filters modal is open
   useEffect(() => {
@@ -73,10 +74,10 @@ const TestComplexityTab: React.FC = () => {
     return forkEips.map(({ eip, layer }) => ({
       eip,
       layer,
-      complexity: getComplexityForEip(complexityMap, eip.id),
+      complexity: findComplexityByEip(complexitySnapshot, eip.id),
       testCount: getExecutionSpecTestCountForEip(eip.id),
     }));
-  }, [forkEips, complexityMap]);
+  }, [forkEips, complexitySnapshot]);
 
   // Apply filtering
   const filteredEips = useMemo(() => {
@@ -359,7 +360,7 @@ const TestComplexityTab: React.FC = () => {
       )}
 
       {/* Loading State */}
-      {loading && complexityMap.size === 0 && (
+      {loading && complexitySnapshot.byEipNumber.size === 0 && (
         <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded p-12 text-center">
           <svg className="w-8 h-8 mx-auto mb-3 text-purple-500 animate-spin" fill="none" viewBox="0 0 24 24">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -371,7 +372,7 @@ const TestComplexityTab: React.FC = () => {
       )}
 
       {/* Mobile Card List */}
-      {(!loading || complexityMap.size > 0) && (
+      {(!loading || complexitySnapshot.byEipNumber.size > 0) && (
       <div className="md:hidden space-y-2">
         {sortedEips.length === 0 ? (
           <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-6 text-center text-slate-500 dark:text-slate-400">
@@ -420,8 +421,8 @@ const TestComplexityTab: React.FC = () => {
                       {complexity ? (
                         <>
                           <div className="text-right">
-                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded ${getComplexityTierColor(complexity.tier)}`}>
-                              {getComplexityTierEmoji(complexity.tier)} {complexity.totalScore}
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded ${tierBadgeClasses(complexity.tier)}`}>
+                              {tierEmoji(complexity.tier)} {complexity.totalScore}
                             </span>
                           </div>
                           <svg
@@ -504,7 +505,7 @@ const TestComplexityTab: React.FC = () => {
       )}
 
       {/* Desktop Table */}
-      {(!loading || complexityMap.size > 0) && (
+      {(!loading || complexitySnapshot.byEipNumber.size > 0) && (
       <div className="hidden md:block bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded overflow-hidden">
         <table className="w-full">
           <thead className="bg-slate-50 dark:bg-slate-700/50">
@@ -612,8 +613,8 @@ const TestComplexityTab: React.FC = () => {
                     </td>
                     <td className="px-3 py-3 text-center">
                       {complexity ? (
-                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded ${getComplexityTierColor(complexity.tier)}`}>
-                          {getComplexityTierEmoji(complexity.tier)} {complexity.totalScore}
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded ${tierBadgeClasses(complexity.tier)}`}>
+                          {tierEmoji(complexity.tier)} {complexity.totalScore}
                         </span>
                       ) : (
                         <span className="text-xs text-slate-400 dark:text-slate-400">&mdash;</span>
