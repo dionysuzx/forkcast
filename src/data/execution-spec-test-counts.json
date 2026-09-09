@@ -1,6 +1,6 @@
 {
   "repo": "ethereum/execution-specs",
-  "fetchedAt": "2026-09-08T10:16:07.524599+00:00",
+  "fetchedAt": "2026-09-09T10:21:51.098761+00:00",
   "eips": {
     "2780": {
       "testFiles": 10,
@@ -32,8 +32,8 @@
     },
     "7928": {
       "testFiles": 13,
-      "testFunctions": 186,
-      "testCases": 2060,
+      "testFunctions": 189,
+      "testCases": 2086,
       "branch": "forks/amsterdam",
       "directoryName": "eip7928_block_level_access_lists"
     },
@@ -94,9 +94,9 @@
       "directoryName": "eip8070_sparse_blobpool"
     },
     "8141": {
-      "testFiles": 11,
-      "testFunctions": 80,
-      "testCases": 1353,
+      "testFiles": 12,
+      "testFunctions": 82,
+      "testCases": 1380,
       "branch": "eips/amsterdam/eip-8141",
       "directoryName": "eip8141_frame_transactions"
     },
