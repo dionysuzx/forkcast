@@ -2,6 +2,13 @@
   "eipId": 8038,
   "commits": [
     {
+      "sha": "4c7e2487e4da3131bcadc7399f8b153f5344c0b7",
+      "date": "2026-09-18T07:10:36Z",
+      "message": "Update EIP-8038: use execution-gas wording, fix the CALLCODE creation cell and a stale benchmark test name",
+      "author": "spencer-tb",
+      "prNumber": null
+    },
+    {
       "sha": "1bbccfb3b9dd06d3b5668792eb8185d309b6e407",
       "date": "2026-09-15T14:16:55Z",
       "message": "Update EIP-8038: clarify charge attribution and component definitions",
