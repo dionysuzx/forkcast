@@ -1,6 +1,6 @@
 {
   "repo": "ethereum/execution-specs",
-  "fetchedAt": "2026-09-21T11:23:42.075767+00:00",
+  "fetchedAt": "2026-09-22T10:33:37.744761+00:00",
   "eips": {
     "2780": {
       "testFiles": 10,
@@ -39,15 +39,15 @@
     },
     "7954": {
       "testFiles": 4,
-      "testFunctions": 21,
-      "testCases": 46,
+      "testFunctions": 28,
+      "testCases": 112,
       "branch": "forks/amsterdam",
       "directoryName": "eip7954_increase_max_contract_size"
     },
     "7976": {
       "testFiles": 7,
-      "testFunctions": 10,
-      "testCases": 546,
+      "testFunctions": 12,
+      "testCases": 564,
       "branch": "forks/amsterdam",
       "directoryName": "eip7976_increase_calldata_floor_cost"
     },
@@ -74,8 +74,8 @@
     },
     "8037": {
       "testFiles": 16,
-      "testFunctions": 273,
-      "testCases": 1183,
+      "testFunctions": 276,
+      "testCases": 1205,
       "branch": "forks/amsterdam",
       "directoryName": "eip8037_state_creation_gas_cost_increase"
     },
@@ -102,8 +102,8 @@
     },
     "8246": {
       "testFiles": 3,
-      "testFunctions": 7,
-      "testCases": 1308,
+      "testFunctions": 8,
+      "testCases": 1310,
       "branch": "forks/amsterdam",
       "directoryName": "eip8246_selfdestruct_no_burn"
     },
