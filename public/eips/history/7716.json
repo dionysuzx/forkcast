@@ -2,6 +2,13 @@
   "eipId": 7716,
   "commits": [
     {
+      "sha": "0899fcfb9487ae6bef64b2f3f61677fa271d0150",
+      "date": "2026-09-29T16:09:33Z",
+      "message": "Update EIP-7716: Move to Draft",
+      "author": "OisinKyne",
+      "prNumber": null
+    },
+    {
       "sha": "859bbcf1faeffd2e51e05159fc6b7bb8660a679d",
       "date": "2025-01-12T00:23:07Z",
       "message": "(bot 1272989785) moving EIPS/eip-7716.md to stagnant (#9173)",
