@@ -1,11 +1,11 @@
 {
   "repo": "ethereum/execution-specs",
-  "fetchedAt": "2026-09-29T11:47:40.554523+00:00",
+  "fetchedAt": "2026-09-30T11:33:52.841862+00:00",
   "eips": {
     "2780": {
       "testFiles": 10,
-      "testFunctions": 63,
-      "testCases": 297,
+      "testFunctions": 65,
+      "testCases": 317,
       "branch": "forks/amsterdam",
       "directoryName": "eip2780_reduce_intrinsic_tx_gas"
     },
@@ -74,8 +74,8 @@
     },
     "8037": {
       "testFiles": 16,
-      "testFunctions": 276,
-      "testCases": 1205,
+      "testFunctions": 278,
+      "testCases": 1209,
       "branch": "forks/amsterdam",
       "directoryName": "eip8037_state_creation_gas_cost_increase"
     },
