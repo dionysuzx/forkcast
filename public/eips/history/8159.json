@@ -2,6 +2,14 @@
   "eipId": 8159,
   "commits": [
     {
+      "sha": "59d4019f121a26f9efbd6b0bfc9c3b9fc0815855",
+      "date": "2026-10-02T10:12:19Z",
+      "message": "Update EIP-8159: Match EIP-7928 BAL storage types",
+      "author": "fselmo",
+      "prNumber": null,
+      "patch": "@@ -54,10 +54,10 @@ account-changes = [\n ]\n \n storage-changes = [slot-changes₁, slot-changes₂, ...]\n-slot-changes = [slot: B_32, [storage-change₁, storage-change₂, ...]]\n-storage-change = [block-access-index: P, value: B_32]\n+slot-changes = [slot: P, [storage-change₁, storage-change₂, ...]]\n+storage-change = [block-access-index: P, value: P]\n \n-storage-reads = [slot₁: B_32, slot₂: B_32, ...]\n+storage-reads = [slot₁: P, slot₂: P, ...]\n \n balance-changes = [balance-change₁, balance-change₂, ...]\n balance-change = [block-access-index: P, balance: P]\n@@ -69,7 +69,7 @@ code-changes = [code-change₁, code-change₂, ...]\n code-change = [block-access-index: P, code: B]\n ```\n \n-`storage-changes` MUST be sorted lexicographically by slot. Changes within each slot MUST be sorted by `block-access-index` ascending. `storage-reads` MUST be sorted lexicographically by slot.\n+`storage-changes` MUST be sorted by slot ascending. Changes within each slot MUST be sorted by `block-access-index` ascending. `storage-reads` MUST be sorted by slot ascending.\n \n Where `block-access-index` indicates when the change occurred:\n "
+    },
+    {
       "sha": "e82376e7749ceb95655feba8c6355f2bc5e67180",
       "date": "2026-08-04T20:17:14Z",
       "message": "Update EIP-8159: Move to Review",
