@@ -2,6 +2,14 @@
   "eipId": 7904,
   "commits": [
     {
+      "sha": "5ef380124bd68d09c02fa90d0de0f2455f37d5ee",
+      "date": "2026-10-06T21:57:47Z",
+      "message": "Update EIP-2780: Move to Last Call (#12442)",
+      "author": "rakita",
+      "prNumber": 12442,
+      "patch": "@@ -4,7 +4,8 @@ title: Compute Gas Cost Analysis\n description: Empirical analysis of EVM compute operation runtimes concluding that no compute gas cost needs repricing at the target throughput\n author: Jacek Glen (@JacekGlen), Lukasz Glen (@lukasz-glen), Maria Silva (@misilva73)\n discussions-to: https://ethereum-magicians.org/t/gas-cost-repricing-to-reflect-computational-complexity/23067\n-status: Review\n+status: Last Call\n+last-call-deadline: 2026-11-01\n type: Informational\n created: 2025-02-05\n ---"
+    },
+    {
       "sha": "80662f8293d85fa1594d7dc0b63c9bcd59f22383",
       "date": "2026-07-08T19:30:12Z",
       "message": "Update EIP-7904: Move to Review",

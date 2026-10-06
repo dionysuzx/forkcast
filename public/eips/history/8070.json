@@ -2,6 +2,14 @@
   "eipId": 8070,
   "commits": [
     {
+      "sha": "5ef380124bd68d09c02fa90d0de0f2455f37d5ee",
+      "date": "2026-10-06T21:57:47Z",
+      "message": "Update EIP-2780: Move to Last Call (#12442)",
+      "author": "rakita",
+      "prNumber": 12442,
+      "patch": "@@ -4,7 +4,8 @@ title: eth/72 - Sparse Blobpool\n description: Introduce custody-aligned sampling in the EL blobpool to vacate bandwidth\n author: Raúl Kripalani (@raulk), Bosul Mun (@healthykim), Francesco D'Amato (@fradamt), Csaba Kiraly (@cskiraly), Felix Lange (@fjl), Marios Ioannou (@mariosioannou-create), Alex Stokes (@ralexstokes), Kamil Salakhiev (@kamilsa)\n discussions-to: https://ethereum-magicians.org/t/eip-8070-sparse-blobpool/26023\n-status: Review\n+status: Last Call\n+last-call-deadline: 2026-11-01\n type: Standards Track\n category: Networking\n created: 2025-10-29"
+    },
+    {
       "sha": "23664b952e844057bc9814cc7a81978b3b80435b",
       "date": "2026-08-24T12:23:35Z",
       "message": "Update EIP-8070: clarify RLP empty-list encoding",

@@ -2,6 +2,14 @@
   "eipId": 7975,
   "commits": [
     {
+      "sha": "5ef380124bd68d09c02fa90d0de0f2455f37d5ee",
+      "date": "2026-10-06T21:57:47Z",
+      "message": "Update EIP-2780: Move to Last Call (#12442)",
+      "author": "rakita",
+      "prNumber": 12442,
+      "patch": "@@ -4,7 +4,8 @@ title: eth/70 - partial block receipt lists\n description: Adds a facility for paginating block receipts in the p2p protocol\n author: Felix Lange <fjl@ethereum.org>, Jochem Brouwer (@jochem-brouwer), Giulio Rebuffo (@Giulio2002)\n discussions-to: https://ethereum-magicians.org/t/eip-7975-eth-70-partial-block-receipt-lists/24658\n-status: Review\n+status: Last Call\n+last-call-deadline: 2026-11-01\n type: Standards Track\n category: Networking\n created: 2025-06-16"
+    },
+    {
       "sha": "d9e35f776d9b2b8434ba7dc2690c89aa22d80a71",
       "date": "2026-08-04T18:27:40Z",
       "message": "Update EIP-7975: Move to Review",

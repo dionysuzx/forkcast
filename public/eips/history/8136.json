@@ -2,6 +2,14 @@
   "eipId": 8136,
   "commits": [
     {
+      "sha": "5ef380124bd68d09c02fa90d0de0f2455f37d5ee",
+      "date": "2026-10-06T21:57:47Z",
+      "message": "Update EIP-2780: Move to Last Call (#12442)",
+      "author": "rakita",
+      "prNumber": 12442,
+      "patch": "@@ -4,7 +4,8 @@ title: Cell-Level Deltas for Data Column Broadcast\n description: Optimization for disseminating only previously unseen cells to the network for PeerDAS.\n author: Marco Munizaga (@MarcoPolo) <git@marcopolo.io>, Daniel Knopik (@dknopik) <daniel@dknopik.de>, Sukun Tarachandani (@sukunrt) <sukunrt@gmail.com>, Aarsh Shah (@aarshkshah1992) <aarshkshah1992@gmail.com>\n discussions-to: https://ethereum-magicians.org/t/eip-8136-cell-level-deltas-for-data-column-broadcast/27675\n-status: Review\n+status: Last Call\n+last-call-deadline: 2026-11-01\n type: Standards Track\n category: Networking\n created: 2025-01-23"
+    },
+    {
       "sha": "a5e98381530d26848d456c2d3eaca733b5e6df8a",
       "date": "2026-08-19T13:33:45Z",
       "message": "Update EIP-8136: add Aarsh Shah to authors (#12191)",

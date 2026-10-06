@@ -2,6 +2,14 @@
   "eipId": 8159,
   "commits": [
     {
+      "sha": "5ef380124bd68d09c02fa90d0de0f2455f37d5ee",
+      "date": "2026-10-06T21:57:47Z",
+      "message": "Update EIP-2780: Move to Last Call (#12442)",
+      "author": "rakita",
+      "prNumber": 12442,
+      "patch": "@@ -4,7 +4,8 @@ title: eth/71 - Block Access List Exchange\n description: Adds peer-to-peer exchange of block-level access lists to the eth protocol\n author: Toni Wahrstätter (@nerolation)\n discussions-to: https://ethereum-magicians.org/t/eip-8159-eth-71-block-access-list-exchange/27725\n-status: Review\n+status: Last Call\n+last-call-deadline: 2026-11-01\n type: Standards Track\n category: Networking\n created: 2026-02-12"
+    },
+    {
       "sha": "59d4019f121a26f9efbd6b0bfc9c3b9fc0815855",
       "date": "2026-10-02T10:12:19Z",
       "message": "Update EIP-8159: Match EIP-7928 BAL storage types",
