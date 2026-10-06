@@ -1,6 +1,6 @@
 {
   "repo": "ethereum/execution-specs",
-  "fetchedAt": "2026-10-05T12:59:05.968664+00:00",
+  "fetchedAt": "2026-10-06T12:25:13.231844+00:00",
   "eips": {
     "2780": {
       "testFiles": 10,
@@ -74,7 +74,7 @@
     },
     "8037": {
       "testFiles": 16,
-      "testFunctions": 279,
+      "testFunctions": 278,
       "testCases": 1215,
       "branch": "forks/amsterdam",
       "directoryName": "eip8037_state_creation_gas_cost_increase"
