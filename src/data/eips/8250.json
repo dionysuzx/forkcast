@@ -11,8 +11,10 @@
   "forkRelationships": [],
   "tradeoffs": null,
   "requires": [
-    7623,
+    7928,
+    7976,
     8037,
+    8038,
     8141
   ]
 }
