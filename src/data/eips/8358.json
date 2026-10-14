@@ -3,7 +3,7 @@
   "title": "EIP-8358: Net Gas Metering for Account Changes",
   "status": "Draft",
   "description": "Make repeated value transfers cheaper by charging account changes once per transaction and refunding accounts that return to original state",
-  "author": "Dragan Rakita (@rakita)",
+  "author": "Dragan Rakita (@rakita), Charles Cooper (@charles-cooper)",
   "type": "Standards Track",
   "category": "Core",
   "createdDate": "2026-07-26",
