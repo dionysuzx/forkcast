@@ -19,10 +19,6 @@
     8037,
     8038
   ],
-  "pendingPullRequest": {
-    "number": 12058,
-    "url": "https://github.com/ethereum/EIPs/pull/12058"
-  },
   "forkRelationships": [],
   "tradeoffs": null
 }
