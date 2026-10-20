@@ -96,5 +96,8 @@
     "Removal of trust assumptions for proposers and builders.",
     "Removal of trust assumptions on off-protocol closed source software."
   ],
-  "tradeoffs": null
+  "tradeoffs": null,
+  "requires": [
+    7685
+  ]
 }
