@@ -2,6 +2,14 @@
   "eipId": 7954,
   "commits": [
     {
+      "sha": "f1ade090fd315895461fc3e249cb1a675aeb55a9",
+      "date": "2026-10-22T14:08:27Z",
+      "message": "Update EIP-2780: Align titles and descriptions of Glamsterdam EIPs (#12561)",
+      "author": "nerolation",
+      "prNumber": 12561,
+      "patch": "@@ -1,7 +1,7 @@\n ---\n eip: 7954\n title: Increase Maximum Contract Size\n-description: Raise the maximum contract code size from 24KiB to 64KiB and initcode size from 48KiB to 128KiB.\n+description: Raise the maximum contract code size from 24KiB to 64KiB and initcode size from 48KiB to 128KiB\n author: Giulio Rebuffo (@Giulio2002), Ben Adams (@benaadams)\n discussions-to: https://ethereum-magicians.org/t/increase-maximum-contract-size-to-48kb/24509\n status: Last Call"
+    },
+    {
       "sha": "5ef380124bd68d09c02fa90d0de0f2455f37d5ee",
       "date": "2026-10-06T21:57:47Z",
       "message": "Update EIP-2780: Move to Last Call (#12442)",

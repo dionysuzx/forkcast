@@ -2,6 +2,14 @@
   "eipId": 8246,
   "commits": [
     {
+      "sha": "f1ade090fd315895461fc3e249cb1a675aeb55a9",
+      "date": "2026-10-22T14:08:27Z",
+      "message": "Update EIP-2780: Align titles and descriptions of Glamsterdam EIPs (#12561)",
+      "author": "nerolation",
+      "prNumber": 12561,
+      "patch": "@@ -1,7 +1,7 @@\n ---\n eip: 8246\n title: Remove SELFDESTRUCT Burn\n-description: Eliminate the remaining cases where SELFDESTRUCT burns ETH.\n+description: Eliminate the remaining cases where SELFDESTRUCT burns ETH\n author: Paweł Bylica (@chfast)\n discussions-to: https://ethereum-magicians.org/t/eip-8246-remove-selfdestruct-burn/28416\n status: Last Call"
+    },
+    {
       "sha": "2db02af3e4e8c3553b6419a0b6159fcef599ce48",
       "date": "2026-09-15T16:33:37Z",
       "message": "Update EIP-8246: Move to Last Call",

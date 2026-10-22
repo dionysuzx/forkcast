@@ -2,6 +2,14 @@
   "eipId": 8136,
   "commits": [
     {
+      "sha": "f1ade090fd315895461fc3e249cb1a675aeb55a9",
+      "date": "2026-10-22T14:08:27Z",
+      "message": "Update EIP-2780: Align titles and descriptions of Glamsterdam EIPs (#12561)",
+      "author": "nerolation",
+      "prNumber": 12561,
+      "patch": "@@ -1,7 +1,7 @@\n ---\n eip: 8136\n title: Cell-Level Deltas for Data Column Broadcast\n-description: Optimization for disseminating only previously unseen cells to the network for PeerDAS.\n+description: Optimization for disseminating only previously unseen cells to the network for PeerDAS\n author: Marco Munizaga (@MarcoPolo) <git@marcopolo.io>, Daniel Knopik (@dknopik) <daniel@dknopik.de>, Sukun Tarachandani (@sukunrt) <sukunrt@gmail.com>, Aarsh Shah (@aarshkshah1992) <aarshkshah1992@gmail.com>\n discussions-to: https://ethereum-magicians.org/t/eip-8136-cell-level-deltas-for-data-column-broadcast/27675\n status: Last Call"
+    },
+    {
       "sha": "5ef380124bd68d09c02fa90d0de0f2455f37d5ee",
       "date": "2026-10-06T21:57:47Z",
       "message": "Update EIP-2780: Move to Last Call (#12442)",

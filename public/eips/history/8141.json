@@ -2,6 +2,28 @@
   "eipId": 8141,
   "commits": [
     {
+      "sha": "d02998e877c6589597f887df324d550a8e07389a",
+      "date": "2026-10-22T19:45:46Z",
+      "message": "Update EIP-8141: Move mode section under Frame definition",
+      "author": "raxhvl",
+      "prNumber": null,
+      "patch": "@@ -101,6 +101,20 @@ Below are high-level definitions of each field in the transaction definition. De\n - `value` -- the amount in wei that should transferred from the `sender` as part of the frame execution.\n - `data` -- the calldata provided to the top level call frame.\n \n+###### Mode\n+\n+The `mode` of each frame sets the context of execution. It allows the protocol to identify\n+the purpose of the frame within the execution loop.\n+\n+| `mode`  | Name           | Summary                                    |\n+|---------|----------------|--------------------------------------------|\n+| 0       | `DEFAULT` mode | Execute frame as `ENTRY_POINT`             |\n+| 1       | `VERIFY` mode  | Frame identifies as transaction validation |\n+| 2       | `SENDER` mode  | Execute frame as `sender`                  |\n+\n+These are the only valid `mode` values. An EIP that extends frame transactions with a new mode adds its value to this set; it does not change how existing values are checked.\n+\n+\n ###### Flags\n \n The `flags` field configures additional execution constraints. Bit positions are zero-based, with the least significant bit numbered `0`.\n@@ -123,17 +137,6 @@ The `flags` field configures additional execution constraints. Bit positions are\n - `msg` -- either empty, indicating the canonical transaction signature hash, or an explicit 32-byte digest.\n - `signature` -- raw signature bytes interpreted according to `scheme`.\n \n-The `mode` of each frame sets the context of execution. It allows the protocol to identify\n-the purpose of the frame within the execution loop.\n-\n-| `mode`  | Name           | Summary                                    |\n-|---------|----------------|--------------------------------------------|\n-| 0       | `DEFAULT` mode | Execute frame as `ENTRY_POINT`             |\n-| 1       | `VERIFY` mode  | Frame identifies as transaction validation |\n-| 2       | `SENDER` mode  | Execute frame as `sender`                  |\n-\n-These are the only valid `mode` values. An EIP that extends frame transactions with a new mode adds its value to this set; it does not change how existing values are checked.\n-\n \n #### Constraints\n "
+    },
+    {
+      "sha": "e19c2a871c0762eaee5429c2e264b66433d2e8be",
+      "date": "2026-10-22T19:16:31Z",
+      "message": "Update EIP-8141: use max_fee to bound cost (#12414)",
+      "author": "lightclient",
+      "prNumber": 12414
+    },
+    {
+      "sha": "46005d745a5d921702f12d64a1b85e712e2b6051",
+      "date": "2026-10-22T00:27:07Z",
+      "message": "Update EIP-8141: commit to elided signature lengths (#12502)",
+      "author": "lightclient",
+      "prNumber": 12502
+    },
+    {
       "sha": "af3a7802c8ea516f717c6013e27d0f529046f007",
       "date": "2026-10-09T16:58:06Z",
       "message": "Update EIP-8141: define the validation prefix and execution body under Behavior",
