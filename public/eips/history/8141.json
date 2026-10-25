@@ -2,6 +2,13 @@
   "eipId": 8141,
   "commits": [
     {
+      "sha": "67d3e90ce49cb0e7031fe3d65ba31bd00858f0ea",
+      "date": "2026-10-25T10:51:24Z",
+      "message": "Update EIP-8141: charge the EIP-8037 legacy share as extra execution gas",
+      "author": "LukaszRozmej",
+      "prNumber": null
+    },
+    {
       "sha": "f1bcca1b56ee91fe115d2a8d8fd731fd6ca38bb3",
       "date": "2026-10-22T22:15:35Z",
       "message": "Update EIP-8141: specify GASPRICE under the max_fee budget",
