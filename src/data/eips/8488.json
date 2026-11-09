@@ -1,6 +1,6 @@
 {
-  "id": 8888,
-  "title": "EIP-8888: Versioned Opcodes for Gas Repricing",
+  "id": 8488,
+  "title": "EIP-8488: Versioned Opcodes for Gas Repricing",
   "status": "Draft",
   "description": "V2 opcodes for EIP-8037/8038 schedule; new contracts only; versioned DELEGATECALL.",
   "author": "Leo Glisic (@lglisic60)",
