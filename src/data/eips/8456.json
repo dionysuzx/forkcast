@@ -1,0 +1,13 @@
+{
+  "id": 8456,
+  "title": "EIP-8456: CALLSTATUS instruction",
+  "status": "Draft",
+  "description": "Instruction that returns whether the last call of the frame succeeded, reverted or halted, and whether a halt occurred below it",
+  "author": "Stavros Vlachakis (@svlachakis)",
+  "type": "Standards Track",
+  "category": "Core",
+  "createdDate": "2026-10-25",
+  "discussionLink": "https://ethereum-magicians.org/t/eip-8456-callstatus-instruction/30085",
+  "forkRelationships": [],
+  "tradeoffs": null
+}

@@ -2,6 +2,30 @@
   "eipId": 8070,
   "commits": [
     {
+      "sha": "e3e214423e3dcbbcfaf1186211ad02971eff98a8",
+      "date": "2026-11-23T10:07:10Z",
+      "message": "Update EIP-8070: Align engine_getBlobsV4 with the Engine API",
+      "author": "tcoratger",
+      "prNumber": null,
+      "patch": "@@ -126,17 +126,17 @@ Request:\n - params:\n   - `versioned_blob_hashes`: []bytes32, an array of blob versioned hashes.\n   - `indices_bitarray`: uint128, a bitarray denoting the indices of the cells to retrieve.\n-- timeout: 500ms\n+- timeout: 1s\n \n Response:\n \n-- result: `[]BlobCellsAndProofsV1`\n+- result: `[]BlobCellsAndProofsV1 | null`, with `null` at the positions of the missing blobs, or `null` in the cases the Engine API specifies.\n - error: code and message set in case an error occurs during processing of the request.\n \n **Data structure `BlobCellsAndProofsV1`**\n \n - `blob_cells`: a sequence of byte arrays `[]bytes` representing the partial matrix of the requested blobs, with `nil` entries for missing cells.\n-- `proofs`: `Array of DATA` - Array of `KZGProof` as defined in [EIP-4844](./eip-4844.md), 48 bytes each (`DATA`)\n+- `proofs`: `Array of DATA|null` - Array of `KZGProof` as defined in [EIP-4844](./eip-4844.md), 48 bytes each (`DATA`), with `nil` entries where the cell is `nil`.\n \n \n ### Parameters"
+    },
+    {
+      "sha": "ad6510bc9d404e5ae4f44fa397fc9c428dd65a36",
+      "date": "2026-11-23T09:24:03Z",
+      "message": "Update EIP-8070: give GetCells and Cells a request ID",
+      "author": "tcoratger",
+      "prNumber": null,
+      "patch": "@@ -52,11 +52,11 @@ Responses MUST elide blob payloads for type 3 transactions requested via this RP\n \n **New message type `GetCells` (`0x14`).** Used to request cells for type 3 transactions. It specifies the transaction hashes being requested, along with a `cell_mask` specifying which cell indices are needed, with syntax identical as `cell_mask` in `NewPooledTransactionHashes`.\n \n-- `eth/72`: `[[hash_0: B_32, hash_1: B_32, ...], cell_mask: B_16]`\n+- `eth/72`: `[request_id: P, [hash_0: B_32, hash_1: B_32, ...], cell_mask: B_16]`\n \n **New message type `Cells` (`0x15`).** Used to respond to a `GetCells` requests.\n \n-- `eth/72`: `[[hash_0: B_32, hash_1: B_32, ...], cells: [[cell_0_0: B_2048, cell_0_1: B_2048, ...], [cell_1_0: B_2048, cell_1_1: B_2048, ...]], cell_mask: B_16]`\n+- `eth/72`: `[request_id: P, [hash_0: B_32, hash_1: B_32, ...], cells: [[cell_0_0: B_2048, cell_0_1: B_2048, ...], [cell_1_0: B_2048, cell_1_1: B_2048, ...]], cell_mask: B_16]`\n \n ### Execution clients :: Blobpool behavior\n "
+    },
+    {
+      "sha": "bce07c18ddfe6c373ac9fd0e7dc8324e8ac99c39",
+      "date": "2026-11-23T09:23:34Z",
+      "message": "Update EIP-8070: keep cell_mask 16 bytes when no blob transaction is announced",
+      "author": "tcoratger",
+      "prNumber": null,
+      "patch": "@@ -39,7 +39,7 @@ The key words \"MUST\", \"MUST NOT\", \"REQUIRED\", \"SHALL\", \"SHALL NOT\", \"SHOULD\", \"S\n We introduce a new devp2p protocol version, `eth/72` extending the existing `eth/71` protocol.\n \n **Modify `NewPooledTransactionHashes` (`0x08`) message.**\n-Add a new field `cell_mask` of type `B_16` (`uint128`). This field MUST be interpreted as a bitarray of length `CELLS_PER_EXT_BLOB`, carrying `1` in the indices of columns the announcer has available for **all type 3 txs announced within the message**. This field MUST be set to `nil` when no transactions of such type are announced. (TODO: this approach is not expressive enough if the node wants to offer randomly sampled columns, nor if it wants to announce transactions with full and partial availability in a single message).\n+Add a new field `cell_mask` of type `B_16` (`uint128`). This field MUST be interpreted as a bitarray of length `CELLS_PER_EXT_BLOB`, carrying `1` in the indices of columns the announcer has available for **all type 3 txs announced within the message**. When no transactions of such type are announced, the field is still a 16-byte string, and the recipient MAY ignore it. (TODO: this approach is not expressive enough if the node wants to offer randomly sampled columns, nor if it wants to announce transactions with full and partial availability in a single message).\n \n - old schema (`eth/71`): `[types: B, [size_0: P, size_1: P, ...], [hash_0: B_32, hash_1: B_32, ...]]`\n - new schema (`eth/72`): `[types: B, [size_0: P, size_1: P, ...], [hash_0: B_32, hash_1: B_32, ...], cell_mask: B_16]`"
+    },
+    {
       "sha": "5ef380124bd68d09c02fa90d0de0f2455f37d5ee",
       "date": "2026-10-06T21:57:47Z",
       "message": "Update EIP-2780: Move to Last Call (#12442)",
