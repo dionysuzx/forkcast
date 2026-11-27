@@ -12,10 +12,6 @@
     8365,
     8433
   ],
-  "pendingPullRequest": {
-    "number": 12099,
-    "url": "https://github.com/ethereum/EIPs/pull/12099"
-  },
   "forkRelationships": [],
   "tradeoffs": null
 }
