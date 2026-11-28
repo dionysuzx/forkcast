@@ -2,6 +2,14 @@
   "eipId": 8024,
   "commits": [
     {
+      "sha": "31f6810719e7ef0f9d4ce3ff4dd4ea466f2809bd",
+      "date": "2026-11-28T13:28:56Z",
+      "message": "Update EIP-8024: Say exceptional halt in the two invalid-immediate tests",
+      "author": "tcoratger",
+      "prNumber": null,
+      "patch": "@@ -183,10 +183,10 @@ This has no effect on contracts that would never attempt to execute the opcodes\n - `600260008080808080600160008080808080808080e8` at the end of code results in 17 stack items, the bottom of the stack valued 1, the 10th stack item from the top valued 2, the rest valued 0\n - `600060016002e88e` results in 3 stack items, from top to bottom: [2, 0, 1]\n - `600080808080808080808080808080808080808080808080808080808060016002e88f` results in 30 stack items, the top of the stack valued 2, the bottom of the stack valued 1, the rest valued 0\n-- `e75b` reverts \n+- `e75b` results in exceptional halt\n - `600456e65b` executes successfully (`PUSH 04 JUMP INVALID_DUPN JUMPDEST`)\n - `60008080e88e15` results in 3 stack items, the top of the stack valued 1, the rest valued 0\n-- `e852` reverts\n+- `e852` results in exceptional halt\n - `6000808080808080808080808080808080e680` results in exceptional halt\n \n ## Security Considerations"
+    },
+    {
       "sha": "875fcf6d084c096195fec170310514444f537133",
       "date": "2026-11-22T14:16:25Z",
       "message": "Update EIP-8024: number the steps once, and name the step that halts",
